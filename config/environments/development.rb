@@ -21,6 +21,11 @@ Rails.application.configure do
     redis: { host: ENV['REDIS_URL'], port: ENV['REDIS_PORT'], db: ENV['REDIS_DB'] }
   }
 
+  # Log to STDERR
+  logger           = ActiveSupport::Logger.new(STDERR)
+  logger.formatter = config.log_formatter
+  config.logger = ActiveSupport::TaggedLogging.new(logger)
+  
   # # Enable/disable caching. By default caching is disabled.
   # if Rails.root.join('tmp/caching-dev.txt').exist?
   #   config.action_controller.perform_caching = true
