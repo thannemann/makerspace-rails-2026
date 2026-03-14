@@ -10,7 +10,12 @@
     content="minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no"
   />
   </head>
+<% if ENV['BGCOLOR'] %>
+<body BGCOLOR="<%= ENV['BGCOLOR'] %>">
+<% else %>
 <body>
+<% end %>
+<% if ENV['VARIANT'] %><div class="watermark"><%= ENV['VARIANT'] %></div><% end %>
   <%= javascript_include_tag 'application' %>
-</body BGCOLOR="<%= ENV.fetch('BGCOLOR', 'FFFFFF') %>" >
+</body>
 </html>
