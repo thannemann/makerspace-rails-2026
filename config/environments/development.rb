@@ -21,10 +21,19 @@ Rails.application.configure do
     redis: { host: ENV['REDIS_URL'], port: ENV['REDIS_PORT'], db: ENV['REDIS_DB'] }
   }
 
-  # Log to STDERR
-  logger           = ActiveSupport::Logger.new(STDERR)
-  logger.formatter = config.log_formatter
-  config.logger = ActiveSupport::TaggedLogging.new(logger)
+  # require 'syslog/logger'
+  # config.logger = ActiveSupport::TaggedLogging.new(Syslog::Logger.new 'app-name')
+
+  if ENV["RAILS_LOG_TO_STDERR"].present?
+    logger           = ActiveSupport::Logger.new(STDERR)
+    logger.formatter = config.log_formatter
+    config.logger = ActiveSupport::TaggedLogging.new(logger)
+  end
+  if ENV["RAILS_LOG_TO_STDOUT"].present?
+    logger           = ActiveSupport::Logger.new(STDOUT)
+    logger.formatter = config.log_formatter
+    config.logger = ActiveSupport::TaggedLogging.new(logger)
+  end
   
   # # Enable/disable caching. By default caching is disabled.
   # if Rails.root.join('tmp/caching-dev.txt').exist?
