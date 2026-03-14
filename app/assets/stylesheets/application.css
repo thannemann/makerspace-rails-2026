@@ -7,7 +7,7 @@ Posted by MiKr13, modified by community. See post 'Timeline' for change history
 Retrieved 2026-03-14, License - CC BY-SA 4.0
 */
 
-#watermark {
+.watermark {
   opacity: 0.15;
   font-size: 52px;
   color: 'DarkSlateGray';
