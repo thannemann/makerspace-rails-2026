@@ -37,7 +37,9 @@ Rails.application.configure do
 
   # Code is not reloaded between requests.
   config.cache_classes = true
-
+  config.hosts << "members.manchestermakerspace.com"
+  config.hosts << "members.manchestermakerspace.org"
+  config.hosts << "makerspace-dev-51ba804d4c30.herokuapp.com"
   # Eager load code on boot. This eager loads most of Rails and
   # your application in memory, allowing both threaded web servers
   # and those relying on copy on write to perform better.
