@@ -22,6 +22,7 @@ jobs:
         working-directory: ui/
       - run: bundle exec rspec
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           RAILS_ENV: test
           MLAB_URI: ${{ secrets.DATABASE_URL }}
           BT_ENV: sandbox
