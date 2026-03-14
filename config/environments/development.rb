@@ -6,7 +6,9 @@ Rails.application.configure do
   # every request. This slows down response time but is perfect for development
   # since you don't have to restart the web server when you make code changes.
   config.cache_classes = false
-
+  config.hosts << "members.manchestermakerspace.com"
+  config.hosts << "members.manchestermakerspace.org"
+  config.hosts << "makerspace-dev-51ba804d4c30.herokuapp.com"
   # Do not eager load code on boot.
   config.eager_load = true
 
