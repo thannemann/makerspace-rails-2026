@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title><%= ENV.fetch('VARIANT', '') %X>Makerspace Authorization</title>
+  <title><%= ENV.fetch('VARIANT', '') %>Makerspace Authorization</title>
   <%= favicon_link_tag asset_path('favicon.png'), :rel => 'icon', :type =>  'image/png' %>
   <%= favicon_link_tag asset_path('favicon.png'), :rel => 'apple-touch-icon', :type =>  'image/png' %>
   <%= stylesheet_link_tag 'application' %>
@@ -12,5 +12,5 @@
   </head>
 <body>
   <%= javascript_include_tag 'application' %>
-</body <%= ENV.fetch('BGCOLOR', 'FFFFFF') %X>>
+</body <%= ENV.fetch('BGCOLOR', 'FFFFFF') %> >
 </html>
