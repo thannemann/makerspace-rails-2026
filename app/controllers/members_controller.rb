@@ -56,6 +56,6 @@ class MembersController < AuthenticationController
     end
 
     def search_params
-      params.permit(:current_members)
+      params.permit(:current_members, :format, :member, :page_num, :order_by, :order, :search)
     end
 end
