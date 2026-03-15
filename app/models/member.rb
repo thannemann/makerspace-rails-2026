@@ -73,10 +73,9 @@ class Member
     if !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
       results = Member.collection.aggregate([ 
         { 
-          :$search => { 
-            text: { 
-              query: searchTerms, 
-              path: "email" 
+          :$match => { 
+            :$text => { 
+              :$search => searchTerms
             } 
           } 
         },
@@ -94,11 +93,9 @@ class Member
     else
       results = Member.collection.aggregate([ 
         { 
-          :$search => { 
-            text: { 
-              query: searchTerms, 
-              path: ["lastname", "firstname", "email"],
-              fuzzy: {} # Empty object enables fuzzy searching
+          :$match => { 
+            :$text => { 
+              :$search => searchTerms
             } 
           }, 
         },
