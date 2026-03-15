@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Makerspace Authorization</title>
+  <title><%= ENV.fetch('VARIANT', '') %>Makerspace Authorization</title>
   <%= favicon_link_tag asset_path('favicon.png'), :rel => 'icon', :type =>  'image/png' %>
   <%= favicon_link_tag asset_path('favicon.png'), :rel => 'apple-touch-icon', :type =>  'image/png' %>
   <%= stylesheet_link_tag 'application' %>
@@ -10,7 +10,12 @@
     content="minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no"
   />
   </head>
+<% if ENV['BGCOLOR'] %>
+<body BGCOLOR="<%= ENV['BGCOLOR'] %>">
+<% else %>
 <body>
+<% end %>
+<% if ENV['VARIANT'] %><div class="watermark"><%= ENV['VARIANT'] %></div><% end %>
   <%= javascript_include_tag 'application' %>
 </body>
 </html>

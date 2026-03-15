@@ -6,7 +6,9 @@ Rails.application.configure do
   # every request. This slows down response time but is perfect for development
   # since you don't have to restart the web server when you make code changes.
   config.cache_classes = false
-
+  config.hosts << "members.manchestermakerspace.com"
+  config.hosts << "members.manchestermakerspace.org"
+  config.hosts << "makerspace-dev-51ba804d4c30.herokuapp.com"
   # Do not eager load code on boot.
   config.eager_load = true
 
@@ -19,6 +21,20 @@ Rails.application.configure do
     redis: { host: ENV['REDIS_URL'], port: ENV['REDIS_PORT'], db: ENV['REDIS_DB'] }
   }
 
+  # require 'syslog/logger'
+  # config.logger = ActiveSupport::TaggedLogging.new(Syslog::Logger.new 'app-name')
+
+  if ENV["RAILS_LOG_TO_STDERR"].present?
+    logger           = ActiveSupport::Logger.new(STDERR)
+    logger.formatter = config.log_formatter
+    config.logger = ActiveSupport::TaggedLogging.new(logger)
+  end
+  if ENV["RAILS_LOG_TO_STDOUT"].present?
+    logger           = ActiveSupport::Logger.new(STDOUT)
+    logger.formatter = config.log_formatter
+    config.logger = ActiveSupport::TaggedLogging.new(logger)
+  end
+  
   # # Enable/disable caching. By default caching is disabled.
   # if Rails.root.join('tmp/caching-dev.txt').exist?
   #   config.action_controller.perform_caching = true
@@ -36,7 +52,7 @@ Rails.application.configure do
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.default_url_options = { host: "http://#{ENV["APP_DOMAIN"] || "localhost"}", port: ENV["PORT"] || 3002 }
   config.action_mailer.perform_caching = false
-  config.action_controller.asset_host = "#{config.action_mailer.default_url_options[:host]}:#{config.action_mailer.default_url_options[:port]}"
+  # config.action_controller.asset_host = "#{config.action_mailer.default_url_options[:host]}:#{config.action_mailer.default_url_options[:port]}"
   config.action_mailer.asset_host = config.action_controller.asset_host
 
   if ENV['MAILTRAP_API_TOKEN']

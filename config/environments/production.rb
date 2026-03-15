@@ -16,7 +16,7 @@ Rails.application.configure do
     redis: { host: ENV['REDIS_URL'], port: ENV['REDIS_PORT'], db: ENV['REDIS_DB'] }
   }
 
-  if ::Util.is_prod?
+  if ENV['GMAIL_USERNAME']
     config.action_mailer.smtp_settings = {
       authentication: :plain,
       address: 'smtp.gmail.com',
@@ -25,22 +25,21 @@ Rails.application.configure do
       user_name: ENV['GMAIL_USERNAME'],
       password: ENV['GMAIL_PASSWORD']
     }
-  elsif ENV['MAILTRAP_API_TOKEN']
-    response = RestClient::Resource.new("https://mailtrap.io/api/v1/inboxes.json?api_token=#{ENV['MAILTRAP_API_TOKEN']}").get
-    inbox = JSON.parse(response)[0]
+  elsif ENV['SMTP_USERNAME']
     config.action_mailer.smtp_settings = {
-      :user_name => inbox['username'],
-      :password => inbox['password'],
-      :address => inbox['domain'],
-      :domain => inbox['domain'],
-      :port => 2525,
-      :authentication => :plain
+      authentication: :plain,
+      address: ENV['SMTP_ADDRESS'],
+      port: 587,
+      user_name: ENV['SMTP_USERNAME'],
+      password: ENV['SMTP_PASSWORD']
     }
   end
 
   # Code is not reloaded between requests.
   config.cache_classes = true
-
+  config.hosts << "members.manchestermakerspace.com"
+  config.hosts << "members.manchestermakerspace.org"
+  config.hosts << "makerspace-dev-51ba804d4c30.herokuapp.com"
   # Eager load code on boot. This eager loads most of Rails and
   # your application in memory, allowing both threaded web servers
   # and those relying on copy on write to perform better.
@@ -65,7 +64,7 @@ Rails.application.configure do
   # `config.assets.precompile` and `config.assets.version` have moved to config/initializers/assets.rb
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
-  config.action_controller.asset_host = config.action_mailer.default_url_options[:host]
+  # config.action_controller.asset_host = config.action_mailer.default_url_options[:host]
   config.action_mailer.asset_host = config.action_mailer.default_url_options[:host]
   
   # Specifies the header that your server uses for sending files.
