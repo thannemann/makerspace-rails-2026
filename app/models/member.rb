@@ -89,7 +89,7 @@ class Member
             _id: 1,
           }
         }
-      ]) 
+      ], hint: "Searcher") 
     else
       results = Member.collection.aggregate([ 
         { 
@@ -109,7 +109,7 @@ class Member
             _id: 1,
           }
         }
-      ])
+      ], hint: "Searcher")
     end
     # collection.aggregate returns base BSON::Documents. Need to map to their class for downstream handlers
     # Fetching exact members or saving will not work
