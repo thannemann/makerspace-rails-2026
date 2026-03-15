@@ -71,17 +71,19 @@ class Member
     # Check if email format, then search email first
     # Otherwise, build lastname, firstname, email
     if !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
-      results = Member.collection.aggregate([ 
+      pipeline = [ 
         { 
-          :$match => { 
-            :$text => { 
-              :$search => searchTerms
+          :$search => { 
+            index: "Searcher",
+            text: { 
+              query: searchTerms, 
+              path: "email" 
             } 
           } 
         },
         {
           :$sort => {
-            score: { :$meta => "textScore" }
+            score: { :$meta => "searchScore" }
           }
         },
         {
@@ -89,19 +91,40 @@ class Member
             _id: 1,
           }
         }
-      ], hint: "Searcher") 
+      ]
+      begin
+        results = Member.collection.aggregate(pipeline)
+      rescue Mongo::Error::OperationFailure
+        pipeline[0] = { 
+          :$search => { 
+            text: { 
+              query: searchTerms, 
+              path: "email" 
+            } 
+          } 
+        }
+        pipeline[1] = {
+          :$sort => {
+            _id: -1
+          }
+        }
+        results = Member.collection.aggregate(pipeline)
+      end
     else
-      results = Member.collection.aggregate([ 
+      pipeline = [ 
         { 
-          :$match => { 
-            :$text => { 
-              :$search => searchTerms
+          :$search => { 
+            index: "Searcher",
+            text: { 
+              query: searchTerms, 
+              path: ["lastname", "firstname", "email"],
+              fuzzy: {} # Empty object enables fuzzy searching
             } 
           }, 
         },
         {
           :$sort => {
-            score: { :$meta => "textScore" }
+            score: { :$meta => "searchScore" }
           }
         },
         {
@@ -109,7 +132,26 @@ class Member
             _id: 1,
           }
         }
-      ], hint: "Searcher")
+      ]
+      begin
+        results = Member.collection.aggregate(pipeline)
+      rescue Mongo::Error::OperationFailure
+        pipeline[0] = { 
+          :$search => { 
+            text: { 
+              query: searchTerms, 
+              path: ["lastname", "firstname", "email"],
+              fuzzy: {} # Empty object enables fuzzy searching
+            } 
+          } 
+        }
+        pipeline[1] = {
+          :$sort => {
+            _id: -1
+          }
+        }
+        results = Member.collection.aggregate(pipeline)
+      end
     end
     # collection.aggregate returns base BSON::Documents. Need to map to their class for downstream handlers
     # Fetching exact members or saving will not work
