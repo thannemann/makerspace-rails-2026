@@ -2,6 +2,7 @@ source 'https://rubygems.org'
 ruby '2.7.5'
 
 gem 'mongo', '~> 2.22'
+gem "ffi", "< 1.17.0"
 
 gem 'rails', '~> 6.0.6.1'
 gem 'rack-cors'
