@@ -19,7 +19,12 @@ jobs:
       - run:
           name: Which bundler?
           command: bundle -v
-      - ruby/bundle-install
+      #- ruby/bundle-install
+      - run:
+          name: Install Gems
+          command: |
+              gem install bundler
+              bundle install --path vendor/bundle
       - run:
           name: UT
           command: bundle exec rspec
@@ -37,7 +42,7 @@ jobs:
       - run:
           name: Which bundler?
           command: bundle -v
-      - ruby/bundle-install
+      - ruby/bundle-install:
       - run:
           name: Publish
           command: |
