@@ -15,19 +15,14 @@ jobs:
           command:  ruby -v
       - run:
           name: Install bundler gem
-          command: gem install bundler:1.17.3
-      - run:
-          name: Install mongo gem
-          command: gem install mongo -v '~> 2.22' 
+          command: gem install bundler:1.17.3 
       - run:
           name: Which bundler?
           command: bundle -v
       #- ruby/bundle-install
       - run:
           name: Install Gems
-          command: |
-              gem install bundler
-              bundle install --path vendor/bundle
+          command: bundle install --path vendor/bundle
       - run:
           name: UT
           command: bundle exec rspec
