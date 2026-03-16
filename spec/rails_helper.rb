@@ -1,4 +1,9 @@
 require "database_cleaner"
+# Remove the ActiveRecord constant, autloaded by ActiveStorage but not needed for our application. The presence
+# of the ActiveRecord constant causes rspec-rails to include extra fixture support, which results in:
+#   ActiveRecord::ConnectionNotEstablished:
+#     No connection pool with 'primary' found.
+Object.send(:remove_const, :ActiveRecord)
 
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 ENV['RAILS_ENV'] ||= 'test'
