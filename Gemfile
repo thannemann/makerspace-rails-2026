@@ -18,7 +18,8 @@ gem 'redis', '< 5.0'
 gem 'redis-rails'
 
 #authentication
-gem 'devise'
+#gem 'devise'
+gem 'devise', '4.7.1'
 gem 'bcrypt'
 #Use Mongo DB
 gem 'mongoid', '~> 7.0.5'
