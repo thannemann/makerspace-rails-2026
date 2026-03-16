@@ -1,6 +1,9 @@
 source 'https://rubygems.org'
 ruby '2.7.5'
 
+gem 'bundler', '1.17.3'
+gem 'mongo', '~> 2.22'
+
 gem 'rails', '~> 6.0.6.1'
 gem 'rack-cors'
 gem 'puma', '~> 4.3'
