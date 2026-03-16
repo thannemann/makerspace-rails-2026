@@ -6,11 +6,11 @@
   <div>
     <p>Hi <%=@member.fullname%>!</p>
     <p>Your <%= friendly_type %> subscription with Manchester Makerspace has been canceled. 
-    
+    This can happen automatically, when two attempts at billing a subscription to a card-on-file fail in a row.
       <% if isMembership %>
         Your key fob will continue working until the end of your current membership term.
       <% end %>
-    <p>
+    </p><p>
     <p>To sign up again or review previous transactions, <%= link_to 'view your account', @url, id: "profile-link"%></p>
   </div>
 </div>
