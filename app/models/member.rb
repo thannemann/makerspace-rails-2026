@@ -66,15 +66,14 @@ class Member
   has_one :group, class_name: "Group", inverse_of: :member
   has_one :earned_membership, class_name: 'EarnedMembership', dependent: :destroy
 
- # Searches by exact email or exact lastname if cant find anything else
+  # Searches by firstname if cant find anything else
   def self.search(searchTerms, criteria = Mongoid::Criteria.new(Member))
     # Check if email format, then search email first
     # Otherwise, build lastname, firstname, email
-    is_email = !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
-    if is_email
-      pipeline = [ 
+    if !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
+      results = Member.collection.aggregate([ 
         { 
-          :$search => {  
+          :$search => { 
             text: { 
               query: searchTerms, 
               path: "email" 
@@ -83,7 +82,7 @@ class Member
         },
         {
           :$sort => {
-            score: { :$meta => "searchScore" }
+            score: { :$meta => "textScore" }
           }
         },
         {
@@ -91,29 +90,11 @@ class Member
             _id: 1,
           }
         }
-      ]
-      begin
-        results = Member.collection.aggregate(pipeline)
-      rescue Mongo::Error::OperationFailure
-        pipeline[0] = { 
-          :$search => { 
-            text: { 
-              query: searchTerms, 
-              path: "email" 
-            } 
-          } 
-        }
-        pipeline[1] = {
-          :$sort => {
-            _id: -1
-          }
-        }
-        results = Member.collection.aggregate(pipeline)
-      end
+      ]) 
     else
-      pipeline = [ 
+      results = Member.collection.aggregate([ 
         { 
-          :$search => {  
+          :$search => { 
             text: { 
               query: searchTerms, 
               path: ["lastname", "firstname", "email"],
@@ -123,7 +104,7 @@ class Member
         },
         {
           :$sort => {
-            score: { :$meta => "searchScore" }
+            score: { :$meta => "textScore" }
           }
         },
         {
@@ -131,42 +112,13 @@ class Member
             _id: 1,
           }
         }
-      ]
-      begin
-        results = Member.collection.aggregate(pipeline)
-      rescue Mongo::Error::OperationFailure
-        pipeline[0] = { 
-          :$search => { 
-            text: { 
-              query: searchTerms, 
-              path: ["lastname", "firstname", "email"],
-              fuzzy: {} # Empty object enables fuzzy searching
-            } 
-          } 
-        }
-        pipeline[1] = {
-          :$sort => {
-            _id: -1
-          }
-        }
-        results = Member.collection.aggregate(pipeline)
-      end
+      ])
     end
     # collection.aggregate returns base BSON::Documents. Need to map to their class for downstream handlers
     # Fetching exact members or saving will not work
     result_ids = results.collect { |r| r[:_id] }
-    members = criteria.where(id: { :$in => result_ids })
-    members = members.sort_by{ |m| result_ids.to_a.index m.id}
-
-    if members.empty? && is_email
-      members = criteria.where(email: searchTerms)
-    end
-
-    if members.empty?
-      members = criteria.where(lastname: searchTerms)
-    end
-
-    members
+    members = Member.where(id: { :$in => result_ids })
+    members.sort_by{ |m| result_ids.to_a.index m.id}
   end
 
   def fullname
