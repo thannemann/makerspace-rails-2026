@@ -32,7 +32,7 @@ ENV RAILS_ENV=$ENVIRONMENT
 
 COPY . .
 
-COPY --from=ui /app/app/assets/builds/makerspace-react.js /app/app/assets/builds/makerspace-react.css /app/app/assets/builds/
+COPY --from=ui /app/app/assets/builds/makerspace-react2026.js /app/app/assets/builds/makerspace-react2026.css /app/app/assets/builds/
 
 # RUN bundle exec rails assets:precompile
 
