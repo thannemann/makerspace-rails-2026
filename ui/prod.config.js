@@ -15,7 +15,7 @@ module.exports = env => ({
   entry: ["@babel/polyfill", "./src/app/main.tsx"],
   output: {
     path: path.resolve(__dirname, "../app/assets/builds"),
-    filename: "makerspace-react.js",
+    filename: "makerspace-react2026.js",
     publicPath: "/"
   },
   module: {
@@ -99,7 +99,7 @@ module.exports = env => ({
     }),
     new webpack.NamedModulesPlugin(),
     new MiniCssExtractPlugin({
-      filename: `makerspace-react.css`
+      filename: `makerspace-react2026.css`
     }),
     new HtmlWebPackPlugin({
       template: "./src/assets/index.html",

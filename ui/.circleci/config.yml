@@ -45,7 +45,7 @@ jobs:
             make deploy
             shred -u ~/.gem/credentials
       - store_artifacts:
-          path: ./tmp/makerspace-react-rails
+          path: ./tmp/makerspace-react-rails2026
 
 workflows:
   workflow:

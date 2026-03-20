@@ -3,7 +3,7 @@ require 'git'
 desc 'Run integration tests for frontend library'
 task :integration do
   # Checkout this repo
-  gem_loc = `bundle show makerspace-react-rails`
+  gem_loc = `bundle show makerspace-react-rails2026`
   version = gem_loc.match(/\d+.\d+.\d+$/).to_a[0]
   react_repo_dir = File.expand_path("tmp/makerspace-react");
   react_repo_url = "https://github.com/ManchesterMakerspace/makerspace-react.git"

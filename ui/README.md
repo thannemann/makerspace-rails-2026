@@ -18,7 +18,7 @@ since selenium can be flaky. There are also integration tests for the real API w
 Branch pushes and PRs trigger Selenium Jest functional tests via TravisCI.
 
 New versions can be cut by appending commit messages with `#patch`, `#minor`, or `#major`.  Without those strings, a new commit will not trigger a release. 
-When a relase triggers, a duplicate version of [makerspace-react-rails](https://github.com/ManchesterMakerspace/makerspace-react-rails) will be published 
+When a relase triggers, a duplicate version of [makerspace-react-rails2026](https://github.com/ManchesterMakerspace/makerspace-react-rails2026) will be published 
 to RubyGems so the Rails server can consume it.
 
 # CONTRIBUTIONS

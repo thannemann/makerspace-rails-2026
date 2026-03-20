@@ -3,12 +3,12 @@ const fs = require("fs");
 const simpleGit = require("simple-git/promise");
 const exec = require("child_process").exec;
 
-const gemName = "makerspace-react-rails";
+const gemName = "makerspace-react-rails2026";
 const tmp = path.join(process.cwd(), "tmp");
 const gemFolder = path.join(process.cwd(), "tmp", gemName);
 
 const gemRepo = {
-  url: "https://github.com/ManchesterMakerspace/makerspace-react-rails.git",
+  url: "https://github.com/ManchesterMakerspace/makerspace-react-rails2026.git",
   jsFolder: path.join(gemFolder, "vendor", "assets", "javascripts"),
   cssFolder: path.join(gemFolder, "vendor", "assets", "stylesheets"),
   versionFile: path.join(gemFolder, "lib", "makerspace", "react", "rails", "version.rb"),
@@ -18,8 +18,8 @@ const versionRegex = /\d+.\d+.\d+/;
 const dist = path.join(process.cwd(), "dist");
 
 const writeOptions = { encoding: "utf-8", flag: "w+" };
-const jsRegex = /(makerspace-react.js).*/
-const cssRegex = /(makerspace-react.css).*/
+const jsRegex = /(makerspace-react2026.js).*/
+const cssRegex = /(makerspace-react2026.css).*/
 
 const writeFileToFolder = (folder) => (file) => {
   const sourcePath = path.join(dist, file);
@@ -73,13 +73,13 @@ const publishGem = async (version) => {
   console.log(`Publishing gem version ${version}...`);
   process.chdir(gemFolder);
   return new Promise(resolve => {
-    exec("gem build makerspace-react-rails.gemspec", { shell: true }, (err) => {
+    exec("gem build makerspace-react-rails2026.gemspec", { shell: true }, (err) => {
       if (err) {
         console.error(`Error building gem: ${err}`);
         return;
       }
   
-      exec(`gem push makerspace-react-rails-${version}.gem`, { shell: true }, (err) => {
+      exec(`gem push makerspace-react-rails2026-${version}.gem`, { shell: true }, (err) => {
         if (err) {
           console.error(`Error publishing gem: ${err}`);
           if (err.stack) {
