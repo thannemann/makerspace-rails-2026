@@ -23,7 +23,7 @@ to RubyGems so the Rails server can consume it.
 
 # CONTRIBUTIONS
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/ManchesterMakerspace/makerspace-react. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the Contributor Covenant code of conduct.
+Bug reports and pull requests are welcome on GitHub at https://github.com/ManchesterMakerspace/makerspace-react-2026. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the Contributor Covenant code of conduct.
 
 All pull requests require Travis CI tests to pass before being merged.
 

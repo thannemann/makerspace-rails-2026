@@ -15,7 +15,7 @@ const railsLogFile = path.join(screenshotsDir, "rails.log");
 const reactLogFile = path.join(screenshotsDir, "react.log");
 
 const railsRepo = {
-  url: "https://github.com/ManchesterMakerspace/makerspace-rails.git",
+  url: "https://github.com/ManchesterMakerspace/makerspace-rails-2026.git",
 }
 
 const integrationTest = async () => {

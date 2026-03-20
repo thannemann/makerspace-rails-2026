@@ -4,7 +4,7 @@ desc 'Tag repo and, if swagger changed, publish updated makerspace-ts-api-client
 task :publish do
   # Checkout this repo
   rails_repo_dir = File.expand_path("tmp/makerspace-rails");
-  rails_repo_url = "https://#{ENV["USERNAME"]}:#{ENV["PASSPHRASE"]}@github.com/ManchesterMakerspace/makerspace-rails.git"
+  rails_repo_url = "https://#{ENV["USERNAME"]}:#{ENV["PASSPHRASE"]}@github.com/ManchesterMakerspace/makerspace-rails-2026.git"
   rails_git = clone_repo(rails_repo_url, rails_repo_dir)
 
   changed_swagger = swagger_changed?(rails_git)
