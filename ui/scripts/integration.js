@@ -1,6 +1,6 @@
 const path = require("path");
 const fs = require("fs");
-const simpleGit = require("simple-git/promise");
+const simpleGit = require("simple-git");
 // const exec = require("child_process").exec;
 const spawn = require("child_process").spawn;
 
