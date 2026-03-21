@@ -109,10 +109,10 @@
   },
   "scripts": {
     "clean": "rm -fr ./node_modules ./dist",
-    "start": "$(npm bin)/webpack-dev-server --config dev.config.js",
+    "start": "npx webpack serve --config dev.config.js",
     "open": "yarn start --open",
-    "build": "$(npm bin)/webpack --config prod.config.js",
-    "test": "$(npm bin)/jest --no-cache",
+    "build": "npx webpack --config prod.config.js",
+    "test": "npx jest --no-cache",
     "test-watch": "yarn test --watch",
     "wdio": "TS_NODE_PROJECT=./tsconfig.wdio.json wdio tests/config/wdio.conf.js",
     "wdio-local": "rm -fr ./tmp/screenshots && yarn build && STATIC_SERVER=true yarn wdio",

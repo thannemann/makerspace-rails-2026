@@ -1,3 +1,5 @@
+export NODE_OPTIONS=--openssl-legacy-provider
+
 deploy:
 	yarn install --production=false
 	yarn build
