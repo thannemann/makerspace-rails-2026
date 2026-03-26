@@ -1,0 +1,10 @@
+{
+  "name": "makerspace-rails-2026",
+  "version": "2.0.1",
+  "description": "Updated makerspace rails",
+  "main": "index.js",
+  "repository": "https://github.com/ManchesterMakerspace/makerspace-rails-2026.git",
+  "author": "contact@manchestermakerspace.org",
+  "license": "MIT",
+  "private": false
+}
