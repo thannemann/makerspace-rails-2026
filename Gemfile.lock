@@ -188,7 +188,7 @@ GEM
       net-imap
       net-pop
       net-smtp
-    makerspace-react-rails2026 (>= 0.1.1)
+    makerspace-react-rails2026
     marcel (1.1.0)
     method_source (1.1.0)
     mime-types (3.7.0)
@@ -422,6 +422,7 @@ DEPENDENCIES
   git
   google-api-client
   honeybadger (~> 5.28)
+  makerspace-react-rails2026
   mini_magick
   mongoid (~> 7.0.5)
   mongoid-rspec
