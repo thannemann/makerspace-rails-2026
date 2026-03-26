@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
-ruby '3.2.3'
+ruby '2.6.9'
 
+gem 'ffi' , '< 1.10'
 gem 'makerspace-react-rails2026'
 gem 'rails', '~> 6.0.6.1'
 gem 'rack-cors'
@@ -56,7 +57,7 @@ end
 
 group :development, :test do
   gem 'byebug', platform: :mri
-  gem 'factory_bot_rails'
+  gem 'factory_bot_rails' , '~> 5.0'
   gem 'rswag-specs'
 end
 

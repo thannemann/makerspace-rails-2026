@@ -5,7 +5,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: cimg/ruby:3.2.3-browsers
+      - image: circleci/ruby:2.6.9-stretch-node-browsers
       - image: redis
     executor: ruby/default
     steps:
@@ -13,6 +13,9 @@ jobs:
       - run:
           name: Which bundler?
           command: bundle -v
+      - run:
+          name: Which node?
+          command: node -v
       - ruby/bundle-install
       - run:
           name: E2E
@@ -24,7 +27,7 @@ jobs:
           path: ./tmp/makerspace-react/tmp/screenshots
   publish:
     docker:
-      - image: cimg/ruby:3.2.3-browsers
+      - image: circleci/ruby:2.6.9-stretch-node-browsers
     executor: ruby/default
     steps:
       - checkout
