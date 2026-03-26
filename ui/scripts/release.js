@@ -6,7 +6,7 @@
 
 const { tagRepo } = require("./simple_tag");
 const packageGem = require("./release_gem");
-const reactRepo = "makerspace-react";
+const reactRepo = "makerspace-react-2026";
 const gemRepo = "makerspace-react-rails2026";
 
 

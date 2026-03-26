@@ -7,6 +7,7 @@ task :integration do
   version = gem_loc.match(/\d+.\d+.\d+$/).to_a[0]
   react_repo_dir = File.expand_path("tmp/makerspace-react");
   react_repo_url = "https://github.com/ManchesterMakerspace/makerspace-react-2026.git"
+  warn "Using gem's version "+ version+" from "+ react_repo_url
   if !File.directory?(react_repo_dir)
     react_git = Git.clone(react_repo_url, react_repo_dir, log: Logger.new("/dev/null")) # Silence logs to prevent cred leak
   else

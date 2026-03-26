@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
 ruby '3.2.3'
 
+gem 'makerspace-react-rails2026'
 gem 'rails', '~> 6.0.6.1'
 gem 'rack-cors'
 gem 'puma', '~> 4.3'
