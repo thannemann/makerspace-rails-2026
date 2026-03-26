@@ -20,7 +20,7 @@ gem 'redis-rails'
 gem 'devise'
 gem 'bcrypt'
 #Use Mongo DB
-gem 'mongoid', '~> 7.0.5'
+gem 'mongoid', '~> 7.3.4'
 gem 'mongoid_search'
 #Paypal IPN
 gem 'paypal-sdk-rest', '~> 1.7.4'
