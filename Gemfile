@@ -1,9 +1,12 @@
 source 'https://rubygems.org'
-ruby '2.6.9'
+ruby '3.2.3'
 
 gem 'rails', '~> 6.0.6.1'
 gem 'rack-cors'
 gem 'puma', '~> 4.3'
+
+gem 'psych', '< 4'
+
 gem 'active_model_serializers', '~> 0.10.15'
 gem 'dotenv-rails'
 gem 'concurrent-ruby', '1.3.4'
