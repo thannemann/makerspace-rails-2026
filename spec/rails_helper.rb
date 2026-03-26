@@ -12,7 +12,7 @@ if ENV.key?('MLAB_URI')  && !ENV['MLAB_URI'].to_s.include?('appName=dev') && !EN
         abort("Mongo is not aimed at the dev db!")
 end
 require File.expand_path('../../config/environment', __FILE__)
-# Prevent database truncation if the environment is production
+# Prevent database deletion if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 require 'spec_helper'
 require 'rspec/rails'
@@ -49,11 +49,11 @@ RSpec.configure do |config|
   config.use_transactional_fixtures = false
 
   config.before(:suite) do
-      DatabaseCleaner[:mongoid].clean_with(:truncation)
+      DatabaseCleaner[:mongoid].clean_with(:deletion)
   end
 
   config.before(:each) do |example|
-    DatabaseCleaner[:mongoid].strategy = :truncation
+    DatabaseCleaner[:mongoid].strategy = :deletion
     DatabaseCleaner[:mongoid].start
   end
 

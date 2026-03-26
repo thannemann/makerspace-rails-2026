@@ -9,7 +9,7 @@ namespace :db do
       puts "Cleaning db..."
 
       Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
-      DatabaseCleaner[:mongoid].strategy = :truncation
+      DatabaseCleaner[:mongoid].strategy = :deletion
       DatabaseCleaner[:mongoid].start
 
       # Collect extra arguments
