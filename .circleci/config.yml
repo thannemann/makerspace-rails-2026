@@ -5,7 +5,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: circleci/ruby:2.6.9-stretch-node-browsers
+      - image: cimg/ruby:2.6.9-browsers
       - image: redis
     executor: ruby/default
     steps:
@@ -27,7 +27,7 @@ jobs:
           path: ./tmp/makerspace-react/tmp/screenshots
   publish:
     docker:
-      - image: circleci/ruby:2.6.9-stretch-node-browsers
+      - image: cimg/ruby:2.6.9-browsers
     executor: ruby/default
     steps:
       - checkout
