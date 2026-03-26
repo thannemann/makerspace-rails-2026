@@ -46,7 +46,7 @@ end
 group :test do
   gem 'rspec-rails', '~> 4.0.0'
   gem 'mongoid-rspec'
-  gem 'database_cleaner'
+  gem 'database_cleaner-mongoid'
   gem 'rails-controller-testing'
   gem 'simplecov'
   gem 'open_api-rswag-specs'
