@@ -4,13 +4,13 @@ namespace :db do
   task :db_reset => :environment do
     if Rails.env.test?
       require 'factory_bot'
-      require 'database_cleaner'
+      require 'database_cleaner/mongoid'
 
       puts "Cleaning db..."
 
       Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
-      DatabaseCleaner.strategy = :truncation
-      DatabaseCleaner.clean
+      DatabaseCleaner[:mongoid].strategy = :truncation
+      DatabaseCleaner[:mongoid].start
 
       # Collect extra arguments
       braintree_options = ARGV.drop(1)
