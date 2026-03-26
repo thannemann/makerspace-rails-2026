@@ -188,7 +188,7 @@ GEM
       net-imap
       net-pop
       net-smtp
-    makerspace-react-rails2026
+    makerspace-react-rails2026 (2.0.3) 
     marcel (1.1.0)
     method_source (1.1.0)
     mime-types (3.7.0)
