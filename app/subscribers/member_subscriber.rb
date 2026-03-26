@@ -1,3 +1,5 @@
+require 'pp'
+
 module MemberSubscriber
   extend Service::GoogleDrive
   extend Service::SlackConnector
@@ -42,6 +44,7 @@ module MemberSubscriber
     begin
       invite_to_slack(member.email, member.lastname, member.firstname)
     rescue => err
+      warn "member='"+member.pretty_inspect.delete("\n\r")+"'"
       enque_message("Error inviting #{member.fullname} to Slack. Error: #{err}")
     end
   end

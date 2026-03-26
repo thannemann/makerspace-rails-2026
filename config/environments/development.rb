@@ -48,7 +48,7 @@ Rails.application.configure do
 
   #   config.cache_store = :null_store
   # end
-
+  config.action_mailer.delivery_job = "ActionMailer::MailDeliveryJob"
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.default_url_options = { host: "http://#{ENV["APP_DOMAIN"] || "localhost"}", port: ENV["PORT"] || 3002 }
   config.action_mailer.perform_caching = false
