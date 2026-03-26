@@ -8,6 +8,9 @@ if ENV['RAILS_ENV'] == 'test' && ENV['LOG_COVERAGE'] then
   puts "required simplecov"
 end
 
+if !ENV['MLAB_URI'].to_s.include?('appName=dev') then
+        abort("Mongo is not aimed at the dev db!")
+end
 require File.expand_path('../../config/environment', __FILE__)
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
