@@ -12,7 +12,7 @@ gem 'dotenv-rails'
 gem 'concurrent-ruby', '1.3.4'
 
 # Redis Cache and Event Bus
-gem 'redis'
+gem 'redis', '< 5.0'
 gem 'redis-rails'
 
 #authentication
