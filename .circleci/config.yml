@@ -23,6 +23,7 @@ jobs:
             echo -n "node "
             node -v
             ruby -v
+            
       - ruby/bundle-install
       - run:
           name: E2E
