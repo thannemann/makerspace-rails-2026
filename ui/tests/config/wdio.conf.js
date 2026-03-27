@@ -15,7 +15,7 @@ exports.config = {
     reporters: ['spec', ["allure", {
         outputDir: "./tmp/allure-results",
     }]],
-    waitForTimeout: 5 * 1000,
+    waitForTimeout: 25 * 1000,
     mochaOpts: {
         ui: "bdd",
         retries: 3,

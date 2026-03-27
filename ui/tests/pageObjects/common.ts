@@ -4,7 +4,7 @@ import { toDatePicker, dateToTime } from "ui/utils/timeToDate";
 import { matchPath } from "react-router";
 
 export class PageUtils {
-  private waitUntilTime = 10 * 1000;
+  private waitUntilTime = 25 * 1000;
 
   // programatically set timeout for locating functions
   public setLocatorTimeout = (num: number) => {

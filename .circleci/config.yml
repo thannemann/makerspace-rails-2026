@@ -1,14 +1,19 @@
 version: 2.1
 orbs:
   ruby: circleci/ruby@0.1.2
-
+  browser-tools: circleci/browser-tools@2.4.0
 jobs:
   build:
     docker:
       - image: cimg/ruby:2.6.9-browsers
       - image: redis
+    resource_class: large
     executor: ruby/default
     steps:
+      - browser-tools/install_chrome:
+          timeout: 5m
+      - browser-tools/install_chromedriver:
+          timeout: 5m
       - checkout
       - run:
           name: Which bundler?
@@ -30,8 +35,13 @@ jobs:
   publish:
     docker:
       - image: cimg/ruby:2.6.9-browsers
+    resource_class: large
     executor: ruby/default
     steps:
+      - browser-tools/install_chrome:
+          timeout: 5m
+      - browser-tools/install_chromedriver:
+          timeout: 5m
       - checkout
       - run:
           name: Which bundler?
