@@ -9,9 +9,9 @@ if ENV['RAILS_ENV'] == 'test' && ENV['LOG_COVERAGE'] then
 end
 # Wrong Mongo database target is a fatal error
 if ENV.key?('MLAB_URI') && !ENV['MLAB_URI'].empty? then
-  puts "Mongo target is '" + ENV['MLAB_URI'].to_s.split('/').last + "'"
-  if !ENV['MLAB_URI'].to_s.include?('appName=dev') && !ENV['MLAB_URI'].to_s.include?('/makerauth_test_')  && !ENV['MLAB_URI'].to_s.include?('/makerauth_dev') then
-        abort("Mongo is not aimed at the dev db! " + ENV['MLAB_URI'].to_s.split('/').last)
+  puts "Mongo target is '" + ENV['MLAB_URI'].to_s.split(':').first+ "#####" + ENV['MLAB_URI'].to_s.split('@').last + "'"
+  if !ENV['MLAB_URI'].to_s.include?('@dev.') ||  !ENV['MLAB_URI'].to_s.include?('/makerauth_test') then
+        abort("Mongo cleaner targeting  " + ENV['MLAB_URI'].to_s.split('/').last)
   end
 end
 
