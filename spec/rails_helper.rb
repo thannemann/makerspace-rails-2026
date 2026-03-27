@@ -53,12 +53,22 @@ RSpec.configure do |config|
   config.use_transactional_fixtures = false
 
   config.before(:suite) do
-      DatabaseCleaner[:mongoid].clean_with(:deletion)
+
+    # Wrong Mongo database target is a fatal error
+   if !ENV['MLAB_URI'].to_s.include?('@dev.') ||  !ENV['MLAB_URI'].to_s.include?('/makerauth_test') then
+           puts "Mongo cleaner bad target  " + ENV['MLAB_URI'].to_s.split('/').last
+      else
+              DatabaseCleaner[:mongoid].clean_with(:deletion)
+     end 
   end
 
   config.before(:each) do |example|
-    DatabaseCleaner[:mongoid].strategy = :deletion
-    DatabaseCleaner[:mongoid].start
+     if !ENV['MLAB_URI'].to_s.include?('@dev.') ||  !ENV['MLAB_URI'].to_s.include?('/makerauth_test') then
+           puts "Mongo cleaner bad target  " + ENV['MLAB_URI'].to_s.split('/').last
+      else
+           DatabaseCleaner[:mongoid].strategy = :deletion
+           DatabaseCleaner[:mongoid].start
+         end 
   end
 
   config.after(:each) do

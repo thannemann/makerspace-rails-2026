@@ -8,6 +8,14 @@ namespace :db do
 
       puts "Cleaning db..."
 
+      # Wrong Mongo database target is a fatal error
+  if ENV.key?('MLAB_URI') && !ENV['MLAB_URI'].empty? then
+    puts "Mongo target is '" + ENV['MLAB_URI'].to_s.split(':').first+ "#####" + ENV['MLAB_URI'].to_s.split('@').last + "'"
+    if !ENV['MLAB_URI'].to_s.include?('@dev.') ||  !ENV['MLAB_URI'].to_s.include?('/makerauth_test') then
+         abort("Mongo cleaner targeting  " + ENV['MLAB_URI'].to_s.split('/').last)
+   end
+  end
+
       Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
       DatabaseCleaner[:mongoid].strategy = :deletion
       DatabaseCleaner[:mongoid].start
