@@ -7,10 +7,14 @@ if ENV['RAILS_ENV'] == 'test' && ENV['LOG_COVERAGE'] then
   SimpleCov.start
   puts "required simplecov"
 end
-
-if ENV.key?('MLAB_URI')  && !ENV['MLAB_URI'].to_s.include?('appName=dev') && !ENV['MLAB_URI'].to_s.include?('/makerauth_test_')  && !ENV['MLAB_URI'].to_s.include?('/makerauth_dev') then
+# Wrong Mongo database target is a fatal error
+if ENV.key?('MLAB_URI') && !ENV['MLAB_URI'].empty? then
+  puts "Mongo target is '" + ENV['MLAB_URI'].to_s.split('/').last + "'"
+  if !ENV['MLAB_URI'].to_s.include?('appName=dev') && !ENV['MLAB_URI'].to_s.include?('/makerauth_test_')  && !ENV['MLAB_URI'].to_s.include?('/makerauth_dev') then
         abort("Mongo is not aimed at the dev db! " + ENV['MLAB_URI'].to_s.split('/').last)
+  end
 end
+
 require File.expand_path('../../config/environment', __FILE__)
 # Prevent database deletion if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
