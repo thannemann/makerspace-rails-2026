@@ -97,7 +97,7 @@ module Service
     end
 
     def self.client
-      Slack::Web::Client.new(token: ENV['SLACK_ADMIN_TOKEN'])
+      Slack::Web::Client.new(token: ENV['SLACK_ADMIN_TOKEN'], team: ENV['SLACK_TEAM_ID'])
     end
 
     def self.format_slack_messages(messages, channel)
