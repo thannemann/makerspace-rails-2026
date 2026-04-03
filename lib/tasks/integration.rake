@@ -16,14 +16,14 @@ task :integration do
 
   react_git.fetch
 
-  if version 
+ if version 
     react_git.checkout(version)
   end
 
-  server_started = system("RAILS_ENV=test rake db:db_reset && RAILS_ENV=test rails s -b 0.0.0.0 -p 3002 -d")
+  server_started = system("RAILS_ENV=test rake db:db_reset && RAILS_ENV=test rails s -b 0.0.0.0 -p 3035 -d")
   if server_started
     Dir.chdir(react_repo_dir)
-    tests_pass = system("PORT=3002 yarn && yarn build && yarn e2e")
+    tests_pass = system("PORT=3035 yarn && PORT=3035 yarn build && PORT=3035 yarn e2e")
     unless tests_pass
       puts("--------------- TESTS FAILED ---------------")
       exit(-1)
@@ -35,10 +35,9 @@ task :integration do
 end
 
 task :start_test_server do 
-  server_started = system("RAILS_ENV=test rake db:db_reset && RAILS_ENV=test rails s -b 0.0.0.0 -p 3002")
+  server_started = system("RAILS_ENV=test rake db:db_reset && RAILS_ENV=test rails s -b 0.0.0.0 -p 3035")
   unless server_started
     puts("--------------- FAILED STARTING SERVER ---------------")
     exit(-1)
   end
 end
-
