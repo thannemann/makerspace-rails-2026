@@ -6,6 +6,7 @@ Rails.application.configure do
   # your test database is "scratch space" for the test suite and is wiped
   # and recreated between test runs. Don't rely on the data there!
   config.cache_classes = true
+  config.hosts << "www.example.com"
   config.hosts << "localhost"
   config.hosts << "127.0.0.1"
   config.hosts << "members.manchestermakerspace.com"
