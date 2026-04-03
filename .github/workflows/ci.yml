@@ -1,59 +1,148 @@
-on: [push]
 name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
 jobs:
-  rspec:
-    name: RSpec
+  # ── 1. Build the UI ──────────────────────────────────────────────────────────
+  build-ui:
+    name: Build UI (TypeScript/React)
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 2.6.9
-          bundler-cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "16.20"
-      - run: yarn && yarn build
-        working-directory: ui/
-      - run: bundle exec rspec
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-          RAILS_ENV: test
-          MLAB_URI: ${{ secrets.DATABASE_URL }}
-          BT_ENV: sandbox
-          BT_MERCHANT_ID: ${{ secrets.BT_MERCHANT_ID }}
-          BT_PUBLIC_KEY: ${{ secrets.BT_PUBLIC_KEY }}
-          BT_PRIVATE_KEY: ${{ secrets.BT_PRIVATE_KEY }}
 
-  # integration:
-  #   name: Integration
-  #   runs-on: ubuntu-latest
-  #   services:
-  #     redis:
-  #       image: redis
-  #       ports:
-  #         - 6379:6379
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: ruby/setup-ruby@v1
-  #       with:
-  #         ruby-version: 2.6.9
-  #         bundler-cache: true
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: "16.20"
-  #     - run: yarn && yarn build
-  #       working-directory: ui/
-  #     - run: bundle exec rake integration
-  #       env:
-  #         RAILS_ENV: test
-  #         MLAB_URI: ${{ secrets.DATABASE_URL }}
-  #         BT_ENV: sandbox
-  #         BT_MERCHANT_ID: ${{ secrets.BT_MERCHANT_ID }}
-  #         BT_PUBLIC_KEY: ${{ secrets.BT_PUBLIC_KEY }}
-  #         BT_PRIVATE_KEY: ${{ secrets.BT_PRIVATE_KEY }}
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16"
+          cache: "yarn"
+          cache-dependency-path: ui/yarn.lock
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: yarn install --frozen-lockfile
+
+      - name: Build UI
+        working-directory: ui
+        run: yarn build
+
+      # Upload the compiled assets so the rspec job can use them
+      - name: Upload built assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-build
+          path: app/assets/builds/
+          retention-days: 1
+
+  # ── 2. RSpec unit tests ───────────────────────────────────────────────────────
+  rspec:
+    name: RSpec Unit Tests
+    runs-on: ubuntu-latest
+    needs: build-ui
+
+    services:
+      mongo:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'" 
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:6
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RAILS_ENV: test
+      # MongoDB
+      MONGODB_URI: mongodb://localhost:27017/makerspace_test
+      # Redis
+      REDIS_URL: redis://localhost:6379/0
+      # Dummy values for gems that require API keys at boot time.
+      # Real secrets are NOT needed for unit tests — stubs handle them.
+      PAYPAL_CLIENT_ID: dummy
+      PAYPAL_CLIENT_SECRET: dummy
+      BRAINTREE_MERCHANT_ID: dummy
+      BRAINTREE_PUBLIC_KEY: dummy
+      BRAINTREE_PRIVATE_KEY: dummy
+      SLACK_API_TOKEN: dummy
+      SECRET_KEY_BASE: dummy_secret_key_base_for_ci_only_not_used_in_prod
+      DEVISE_SECRET_KEY: dummy_devise_secret_for_ci
+      HONEYBADGER_API_KEY: dummy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "2.6.9"
+          bundler-cache: true   # runs `bundle install` and caches automatically
+
+      - name: Download built UI assets
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: app/assets/builds/
+
+      - name: Run RSpec
+        run: bundle exec rspec --format progress --format RspecJunitFormatter --out tmp/rspec_results.xml
+        continue-on-error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rspec-results
+          path: tmp/rspec_results.xml
+          retention-days: 7
+
+  # ── 3. Production asset precompile check ─────────────────────────────────────
+  #    Catches Sprockets/manifest errors without needing real credentials.
+  compile-production:
+    name: Production Asset Compile
+    runs-on: ubuntu-latest
+    needs: build-ui
+
+    env:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: dummy_secret_key_base_for_ci_only_not_used_in_prod
+      DEVISE_SECRET_KEY: dummy_devise_secret_for_ci
+      MONGODB_URI: mongodb://localhost:27017/makerspace_production
+      PAYPAL_CLIENT_ID: dummy
+      PAYPAL_CLIENT_SECRET: dummy
+      BRAINTREE_MERCHANT_ID: dummy
+      BRAINTREE_PUBLIC_KEY: dummy
+      BRAINTREE_PRIVATE_KEY: dummy
+      SLACK_API_TOKEN: dummy
+      HONEYBADGER_API_KEY: dummy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "2.6.9"
+          bundler-cache: true
+
+      - name: Download built UI assets
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: app/assets/builds/
+
+      - name: Precompile assets
+        run: bundle exec rails assets:precompile
