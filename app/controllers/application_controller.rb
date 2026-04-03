@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
   include SlackService
   include SetCurrentRequestDetails
 
-  protect_from_forgery with: :exception, unless: -> { request.format.json? }
+  protect_from_forgery with: :exception
   after_action :set_csrf_cookie_for_ng
   before_action :configure_permitted_parameters, if: :devise_controller?
   before_action :filter_requests
