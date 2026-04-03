@@ -7,14 +7,14 @@ on:
     branches: [master]
 
 jobs:
-  # ── 1. Build the UI ──────────────────────────────────────────────────────────
+  # ── 1. Build the React/TS UI ─────────────────────────────────────────────────
   build-ui:
-    name: Build UI (TypeScript/React)
+    name: Build UI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node 16
         uses: actions/setup-node@v4
         with:
           node-version: "16"
@@ -29,8 +29,7 @@ jobs:
         working-directory: ui
         run: yarn build
 
-      # Upload the compiled assets so the rspec job can use them
-      - name: Upload built assets
+      - name: Upload compiled assets
         uses: actions/upload-artifact@v4
         with:
           name: ui-build
@@ -39,17 +38,17 @@ jobs:
 
   # ── 2. RSpec unit tests ───────────────────────────────────────────────────────
   rspec:
-    name: RSpec Unit Tests
+    name: RSpec
     runs-on: ubuntu-latest
     needs: build-ui
 
     services:
       mongo:
-        image: mongo:4.4
+        image: mongo:4.4        # matches mongoid 7.0.x / mongo driver 2.13.x
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'" 
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -66,30 +65,55 @@ jobs:
 
     env:
       RAILS_ENV: test
-      # MongoDB
-      MONGODB_URI: mongodb://localhost:27017/makerspace_test
-      # Redis
+
+      # ── MongoDB ───────────────────────────────────────────────────────────────
+      # Mongoid reads MLAB_URI (matches sample.env). Points at the service above.
+      MLAB_URI: mongodb://localhost:27017/makerspace_test
+
+      # ── Redis ─────────────────────────────────────────────────────────────────
       REDIS_URL: redis://localhost:6379/0
-      # Dummy values for gems that require API keys at boot time.
-      # Real secrets are NOT needed for unit tests — stubs handle them.
+
+      # ── Rails internals ───────────────────────────────────────────────────────
+      SECRET_KEY_BASE: ci_dummy_secret_key_base_not_used_in_production
+      DEVISE_SECRET_KEY: ci_dummy_devise_secret
+
+      # ── Third-party APIs — dummy values so gems boot without crashing ─────────
+      # Unit tests should stub/mock these; no real calls are made.
       PAYPAL_CLIENT_ID: dummy
-      PAYPAL_CLIENT_SECRET: dummy
-      BRAINTREE_MERCHANT_ID: dummy
-      BRAINTREE_PUBLIC_KEY: dummy
-      BRAINTREE_PRIVATE_KEY: dummy
-      SLACK_API_TOKEN: dummy
-      SECRET_KEY_BASE: dummy_secret_key_base_for_ci_only_not_used_in_prod
-      DEVISE_SECRET_KEY: dummy_devise_secret_for_ci
+      PAYPAL_SECRET: dummy
+      BT_ENV: sandbox
+      BT_MERCHANT_ID: dummy
+      BT_PUBLIC_KEY: dummy
+      BT_PRIVATE_KEY: dummy
+      SLACK_ADMIN_TOKEN: dummy
+      GMAIL_USERNAME: dummy@example.com
+      GMAIL_PASSWORD: dummy
+      GOOGLE_ID: dummy
+      GOOGLE_SECRET: dummy
+      GOOGLE_TOKEN: dummy
+      # Google Drive folder IDs
+      CODE_CONDUCT_ID: dummy
+      CODE_CONDUCT_FOLDER: dummy
+      CONTRACT_ID: dummy
+      MEMBER_CONTRACT_FOLDER: dummy
+      RENTAL_AGREEMENT_ID: dummy
+      RENTAL_AGREEMENT_FOLDER: dummy
+      RESOURCES_FOLDER: dummy
+      SIGNATURES_FOLDER: dummy
+      BACKUP_FOLDER: dummy
+      # Honeybadger — disable in CI so it doesn't try to phone home
       HONEYBADGER_API_KEY: dummy
+      HONEYBADGER_ENV: test
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Ruby
+      - name: Set up Ruby 2.6.9
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "2.6.9"
-          bundler-cache: true   # runs `bundle install` and caches automatically
+          bundler-version: "1.17.3"   # matches Gemfile.lock BUNDLED WITH
+          bundler-cache: true          # runs bundle install + caches vendor/bundle
 
       - name: Download built UI assets
         uses: actions/download-artifact@v4
@@ -98,19 +122,19 @@ jobs:
           path: app/assets/builds/
 
       - name: Run RSpec
-        run: bundle exec rspec --format progress --format RspecJunitFormatter --out tmp/rspec_results.xml
-        continue-on-error: false
+        run: bundle exec rspec --format documentation --format progress
 
-      - name: Upload test results
-        if: always()
+      - name: Upload test artifacts on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: rspec-results
-          path: tmp/rspec_results.xml
+          name: rspec-failure-artifacts
+          path: |
+            tmp/
+            log/test.log
           retention-days: 7
 
-  # ── 3. Production asset precompile check ─────────────────────────────────────
-  #    Catches Sprockets/manifest errors without needing real credentials.
+  # ── 3. Production asset compile check ────────────────────────────────────────
   compile-production:
     name: Production Asset Compile
     runs-on: ubuntu-latest
@@ -118,24 +142,31 @@ jobs:
 
     env:
       RAILS_ENV: production
-      SECRET_KEY_BASE: dummy_secret_key_base_for_ci_only_not_used_in_prod
-      DEVISE_SECRET_KEY: dummy_devise_secret_for_ci
-      MONGODB_URI: mongodb://localhost:27017/makerspace_production
+      SECRET_KEY_BASE: ci_dummy_secret_key_base_not_used_in_production
+      DEVISE_SECRET_KEY: ci_dummy_devise_secret
+      MLAB_URI: mongodb://localhost:27017/makerspace_production
       PAYPAL_CLIENT_ID: dummy
-      PAYPAL_CLIENT_SECRET: dummy
-      BRAINTREE_MERCHANT_ID: dummy
-      BRAINTREE_PUBLIC_KEY: dummy
-      BRAINTREE_PRIVATE_KEY: dummy
-      SLACK_API_TOKEN: dummy
+      PAYPAL_SECRET: dummy
+      BT_ENV: sandbox
+      BT_MERCHANT_ID: dummy
+      BT_PUBLIC_KEY: dummy
+      BT_PRIVATE_KEY: dummy
+      SLACK_ADMIN_TOKEN: dummy
+      GMAIL_USERNAME: dummy@example.com
+      GMAIL_PASSWORD: dummy
+      GOOGLE_ID: dummy
+      GOOGLE_SECRET: dummy
+      GOOGLE_TOKEN: dummy
       HONEYBADGER_API_KEY: dummy
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Ruby
+      - name: Set up Ruby 2.6.9
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "2.6.9"
+          bundler-version: "1.17.3"
           bundler-cache: true
 
       - name: Download built UI assets
