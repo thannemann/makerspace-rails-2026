@@ -44,7 +44,8 @@ RSpec.describe InvoicesController, type: :controller do
     end
 
     it  "Can create an invoice with an associated discount" do 
-      discount = ::BraintreeService::Discount.standard_membership_discount
+      discount = ::BraintreeService::Discount.send(:standard_membership_discount)
+      allow(::BraintreeService::Discount).to receive(:get_discounts).and_return([discount])
       post :create, params: { id: io.id, discount_id: discount.id }
       expect(response).to have_http_status(200)
       expect(response.media_type).to eq "application/json"
