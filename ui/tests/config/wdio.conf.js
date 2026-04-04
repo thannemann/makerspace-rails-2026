@@ -79,7 +79,7 @@ exports.config = {
             // Set to a width of 900 b/c the dev tools panel is open and included in this size
             await browser.setWindowSize(900, 1136)
         } else {
-            await browser.maximizeWindow()
+            await browser.setWindowSize(1920, 1080)
         }
     },
     async afterTest(
