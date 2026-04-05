@@ -2,11 +2,8 @@ require 'git'
 
 desc 'Run integration tests for frontend library'
 task :integration do
-  # Checkout this repo
-  gem_loc = `bundle show makerspace-react-rails`
-  version = gem_loc.match(/\d+.\d+.\d+$/).to_a[0]
   react_repo_dir = File.expand_path("tmp/makerspace-react");
-  react_repo_url = "https://github.com/ManchesterMakerspace/makerspace-react.git"
+  react_repo_url = "https://github.com/thannemann/makerspace-react-rails2026.git"
   if !File.directory?(react_repo_dir)
     react_git = Git.clone(react_repo_url, react_repo_dir, log: Logger.new("/dev/null")) # Silence logs to prevent cred leak
   else
@@ -15,10 +12,6 @@ task :integration do
   end
 
   react_git.fetch
-
- if version 
-    react_git.checkout(version)
-  end
 
   server_started = system("RAILS_ENV=test rake db:db_reset && RAILS_ENV=test rails s -b 0.0.0.0 -p 3035 -d")
   if server_started
