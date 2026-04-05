@@ -23,7 +23,7 @@ jobs:
 
       - name: Install UI dependencies
         working-directory: ui
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Build UI
         working-directory: ui
