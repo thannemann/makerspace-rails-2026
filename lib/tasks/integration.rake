@@ -3,7 +3,7 @@ require 'git'
 desc 'Run integration tests for frontend library'
 task :integration do
   react_repo_dir = File.expand_path("tmp/makerspace-react");
-  react_repo_url = "https://github.com/thannemann/makerspace-react-rails2026.git"
+  react_repo_url = "https://github.com/thannemann/makerspace-react.git"
   if !File.directory?(react_repo_dir)
     react_git = Git.clone(react_repo_url, react_repo_dir, log: Logger.new("/dev/null")) # Silence logs to prevent cred leak
   else
