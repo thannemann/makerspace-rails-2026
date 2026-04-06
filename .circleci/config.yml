@@ -48,7 +48,7 @@ jobs:
           name: Build UI (React → app/assets/builds/)
           working_directory: ui
           command: |
-            yarn install --frozen-lockfile --ignore-engines
+            yarn install --ignore-engines
             yarn build
 
       - run:
