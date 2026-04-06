@@ -11,6 +11,7 @@ namespace :db do
       Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
       DatabaseCleaner.strategy = :truncation
       DatabaseCleaner.clean
+      FactoryBot.rewind_sequences
 
       # Collect extra arguments
       braintree_options = ARGV.drop(1)
