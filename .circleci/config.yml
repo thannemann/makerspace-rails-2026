@@ -1,59 +1,39 @@
 version: 2.1
 
+orbs:
+  browser-tools: circleci/browser-tools@1.4.8
+
 jobs:
   build:
     docker:
-      - image: cimg/ruby:2.6.9-node
+      - image: cimg/ruby:2.6.9-browsers
       - image: mongo:4.4
         environment:
           MONGO_INITDB_DATABASE: makerspace_test
-      - image: redis:6
+      - image: redis
 
-    resource_class: medium
-
-    environment:
-      RAILS_ENV: test
-      MLAB_URI: mongodb://localhost:27017/makerspace_test
-      REDIS_URL: redis://localhost:6379/0
-      SECRET_KEY_BASE:         ci_dummy_secret
-      DEVISE_SECRET_KEY:       ci_dummy_devise
-      PAYPAL_CLIENT_ID:        dummy
-      PAYPAL_SECRET:           dummy
-      BT_ENV:                  sandbox
-      BT_MERCHANT_ID:          dummy
-      BT_PUBLIC_KEY:           dummy
-      BT_PRIVATE_KEY:          dummy
-      SLACK_ADMIN_TOKEN:       dummy
-      GMAIL_USERNAME:          dummy@example.com
-      GMAIL_PASSWORD:          dummy
-      GOOGLE_ID:               dummy
-      GOOGLE_SECRET:           dummy
-      GOOGLE_TOKEN:            dummy
-      CODE_CONDUCT_ID:         dummy
-      CODE_CONDUCT_FOLDER:     dummy
-      CONTRACT_ID:             dummy
-      MEMBER_CONTRACT_FOLDER:  dummy
-      RENTAL_AGREEMENT_ID:     dummy
-      RENTAL_AGREEMENT_FOLDER: dummy
-      RESOURCES_FOLDER:        dummy
-      SIGNATURES_FOLDER:       dummy
-      BACKUP_FOLDER:           dummy
-      HONEYBADGER_API_KEY:     dummy
-      HONEYBADGER_ENV:         test
+    resource_class: large
 
     steps:
       - checkout
 
       - run:
-          name: Build UI (React → app/assets/builds/)
-          working_directory: ui
+          name: Check environment
           command: |
-            yarn install --ignore-engines
-            yarn build
+            ruby -v
+            which ruby
+            cat Gemfile | grep ^ruby || echo "no ruby version in Gemfile"
+
+      - browser-tools/install-chrome
+      - browser-tools/install-chromedriver
 
       - run:
           name: Install Bundler 1.17.3
-          command: gem install bundler:1.17.3
+          command: |
+            gem install bundler:1.17.3
+            bundle -v
+            node -v
+            ruby -v
 
       - restore_cache:
           keys:
@@ -89,22 +69,28 @@ jobs:
             "
 
       - run:
-          name: Run RSpec
-          command: bundle exec rspec --format progress
+          name: E2E
+          command: bundle exec rake integration
+
+      - run:
+          name: UT
+          command: bundle exec rspec
 
       - store_artifacts:
-          path: ./tmp/screenshots
+          path: ./tmp/makerspace-react/tmp/screenshots
 
   publish:
     docker:
-      - image: cimg/ruby:2.6.9-node
-    resource_class: medium
+      - image: cimg/ruby:2.6.9-browsers
+    resource_class: large
     steps:
       - checkout
 
       - run:
           name: Install Bundler 1.17.3
-          command: gem install bundler:1.17.3
+          command: |
+            gem install bundler:1.17.3
+            bundle -v
 
       - restore_cache:
           keys:
