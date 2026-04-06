@@ -1,29 +1,22 @@
 version: 2.1
 
-orbs:
-  ruby: circleci/ruby@2.1.4   # updated from 0.1.2 — old orb missing bundle-install command
-
 jobs:
   build:
     docker:
-      - image: cimg/ruby:2.6.9-node   # node included; drop -browsers (no E2E here)
-      - image: mongo:4.4              # ADD: Mongoid needs MongoDB — was missing entirely
+      - image: cimg/ruby:2.6.9-node
+      - image: mongo:4.4
         environment:
           MONGO_INITDB_DATABASE: makerspace_test
-      - image: redis:6                # keep Redis
+      - image: redis:6
 
-    resource_class: medium            # large is unnecessary for unit tests only
+    resource_class: medium
 
     environment:
       RAILS_ENV: test
-      # MongoDB — matches the key in config/mongoid.yml
       MLAB_URI: mongodb://localhost:27017/makerspace_test
-      # Redis
       REDIS_URL: redis://localhost:6379/0
-      # Rails internals
-      SECRET_KEY_BASE: ci_dummy_secret
-      DEVISE_SECRET_KEY: ci_dummy_devise
-      # Third-party APIs — dummy values so initializers boot without crashing
+      SECRET_KEY_BASE:         ci_dummy_secret
+      DEVISE_SECRET_KEY:       ci_dummy_devise
       PAYPAL_CLIENT_ID:        dummy
       PAYPAL_SECRET:           dummy
       BT_ENV:                  sandbox
@@ -51,12 +44,6 @@ jobs:
     steps:
       - checkout
 
-      # ── FIX 1: Build the React UI so Sprockets can find makerspace-react.js ──
-      # app/assets/config/manifest.js links makerspace-react.js. Any spec that
-      # triggers a controller action which uses url_for(:application) (e.g. POST
-      # /admin/members → send_set_password_email) causes Sprockets to compile
-      # the full manifest. Without the built file those specs crash with
-      # Sprockets::FileNotFound before any assertion runs.
       - run:
           name: Build UI (React → app/assets/builds/)
           working_directory: ui
@@ -68,8 +55,19 @@ jobs:
           name: Install Bundler 1.17.3
           command: gem install bundler:1.17.3
 
-      # ruby orb 2.x uses bundle-install (hyphen, not underscore)
-      - ruby/bundle-install
+      - restore_cache:
+          keys:
+            - bundle-v1-{{ checksum "Gemfile.lock" }}
+            - bundle-v1-
+
+      - run:
+          name: Bundle install
+          command: bundle install --path vendor/bundle --jobs 4 --retry 3
+
+      - save_cache:
+          key: bundle-v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
 
       - run:
           name: Wait for MongoDB
@@ -80,13 +78,6 @@ jobs:
               sleep 2
             done
 
-      # ── FIX 2: Ensure mongoid_search indexes exist before specs run ──────────
-      # Payment#find_member runs in after_initialize (fires immediately at
-      # .create time). It calls Member.search() which queries _keywords /
-      # _firstname_keywords fields built by mongoid_search. The specs use
-      # sleep(5) to allow the index to become consistent, but that only works
-      # if the index already exists on the collection. Creating it explicitly
-      # here guarantees it is present before any spec touches the DB.
       - run:
           name: Create mongoid_search indexes
           command: |
@@ -110,10 +101,25 @@ jobs:
     resource_class: medium
     steps:
       - checkout
+
       - run:
           name: Install Bundler 1.17.3
           command: gem install bundler:1.17.3
-      - ruby/bundle-install
+
+      - restore_cache:
+          keys:
+            - bundle-v1-{{ checksum "Gemfile.lock" }}
+            - bundle-v1-
+
+      - run:
+          name: Bundle install
+          command: bundle install --path vendor/bundle --jobs 4 --retry 3
+
+      - save_cache:
+          key: bundle-v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+
       - run:
           name: Publish
           command: |
