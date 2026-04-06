@@ -1,71 +1,126 @@
 version: 2.1
+
 orbs:
-  ruby: circleci/ruby@0.1.2
-  browser-tools: circleci/browser-tools@2.4.0
+  ruby: circleci/ruby@2.1.4   # updated from 0.1.2 — old orb missing bundle-install command
+
 jobs:
   build:
     docker:
-      - image: cimg/ruby:2.6.9-browsers
-      - image: redis
-    resource_class: large
+      - image: cimg/ruby:2.6.9-node   # node included; drop -browsers (no E2E here)
+      - image: mongo:4.4              # ADD: Mongoid needs MongoDB — was missing entirely
+        environment:
+          MONGO_INITDB_DATABASE: makerspace_test
+      - image: redis:6                # keep Redis
+
+    resource_class: medium            # large is unnecessary for unit tests only
+
+    environment:
+      RAILS_ENV: test
+      # MongoDB — matches the key in config/mongoid.yml
+      MLAB_URI: mongodb://localhost:27017/makerspace_test
+      # Redis
+      REDIS_URL: redis://localhost:6379/0
+      # Rails internals
+      SECRET_KEY_BASE: ci_dummy_secret
+      DEVISE_SECRET_KEY: ci_dummy_devise
+      # Third-party APIs — dummy values so initializers boot without crashing
+      PAYPAL_CLIENT_ID:        dummy
+      PAYPAL_SECRET:           dummy
+      BT_ENV:                  sandbox
+      BT_MERCHANT_ID:          dummy
+      BT_PUBLIC_KEY:           dummy
+      BT_PRIVATE_KEY:          dummy
+      SLACK_ADMIN_TOKEN:       dummy
+      GMAIL_USERNAME:          dummy@example.com
+      GMAIL_PASSWORD:          dummy
+      GOOGLE_ID:               dummy
+      GOOGLE_SECRET:           dummy
+      GOOGLE_TOKEN:            dummy
+      CODE_CONDUCT_ID:         dummy
+      CODE_CONDUCT_FOLDER:     dummy
+      CONTRACT_ID:             dummy
+      MEMBER_CONTRACT_FOLDER:  dummy
+      RENTAL_AGREEMENT_ID:     dummy
+      RENTAL_AGREEMENT_FOLDER: dummy
+      RESOURCES_FOLDER:        dummy
+      SIGNATURES_FOLDER:       dummy
+      BACKUP_FOLDER:           dummy
+      HONEYBADGER_API_KEY:     dummy
+      HONEYBADGER_ENV:         test
+
     steps:
       - checkout
+
+      # ── FIX 1: Build the React UI so Sprockets can find makerspace-react.js ──
+      # app/assets/config/manifest.js links makerspace-react.js. Any spec that
+      # triggers a controller action which uses url_for(:application) (e.g. POST
+      # /admin/members → send_set_password_email) causes Sprockets to compile
+      # the full manifest. Without the built file those specs crash with
+      # Sprockets::FileNotFound before any assertion runs.
       - run:
-          name: Check environment
+          name: Build UI (React → app/assets/builds/)
+          working_directory: ui
           command: |
-            ruby -v
-            which ruby
-            cat .ruby-version 2>/dev/null || echo "no .ruby-version file"
-            cat Gemfile | grep ^ruby || echo "no ruby version in Gemfile"
-      - browser-tools/install_chrome:
-          timeout: 5m
-      - browser-tools/install_chromedriver:
-          timeout: 5m
+            yarn install --frozen-lockfile --ignore-engines
+            yarn build
+
       - run:
-          name: Which bundler?
-          command: |
-            gem install bundler:1.17.3
-            bundle -v
-            echo -n "node "
-            node -v
-            ruby -v
-      - run:
-          name: Install matching ChromeDriver
-          command: |
-            CHROME_VERSION=$(google-chrome --version | grep -oP '\d+' | head -1)
-            npx chromedriver --version || npm install -g chromedriver@$CHROME_VERSION
+          name: Install Bundler 1.17.3
+          command: gem install bundler:1.17.3
+
+      # ruby orb 2.x uses bundle-install (hyphen, not underscore)
       - ruby/bundle-install
+
       - run:
-          name: E2E
-          command: bundle exec rake integration
+          name: Wait for MongoDB
+          command: |
+            for i in $(seq 1 30); do
+              mongo --eval "db.runCommand({ ping: 1 })" --quiet && break
+              echo "Waiting for mongo... ($i)"
+              sleep 2
+            done
+
+      # ── FIX 2: Ensure mongoid_search indexes exist before specs run ──────────
+      # Payment#find_member runs in after_initialize (fires immediately at
+      # .create time). It calls Member.search() which queries _keywords /
+      # _firstname_keywords fields built by mongoid_search. The specs use
+      # sleep(5) to allow the index to become consistent, but that only works
+      # if the index already exists on the collection. Creating it explicitly
+      # here guarantees it is present before any spec touches the DB.
       - run:
-          name: UT
-          command: bundle exec rspec
+          name: Create mongoid_search indexes
+          command: |
+            bundle exec rails runner "
+              Mongoid.purge!
+              Member.create_indexes
+              Payment.create_indexes
+              puts 'Indexes created'
+            "
+
+      - run:
+          name: Run RSpec
+          command: bundle exec rspec --format progress
+
       - store_artifacts:
-          path: ./tmp/makerspace-react/tmp/screenshots
+          path: ./tmp/screenshots
+
   publish:
     docker:
-      - image: cimg/ruby:2.6.9-browsers
-    resource_class: large
+      - image: cimg/ruby:2.6.9-node
+    resource_class: medium
     steps:
       - checkout
-      - browser-tools/install_chrome:
-          timeout: 5m
-      - browser-tools/install_chromedriver:
-          timeout: 5m
       - run:
-          name: Which bundler?
-          command: |
-            gem install bundler:1.17.3
-            bundle -v
+          name: Install Bundler 1.17.3
+          command: gem install bundler:1.17.3
       - ruby/bundle-install
       - run:
           name: Publish
           command: |
-            git config --global -l
             git config --global user.email circleci@circleci
             git config --global user.name CircleCI
             bundle exec rake publish
+
 workflows:
   workflow:
     jobs:
@@ -74,3 +129,5 @@ workflows:
           filters:
             branches:
               only: master
+          requires:
+            - build
