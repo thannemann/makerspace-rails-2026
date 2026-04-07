@@ -39,9 +39,10 @@ class Payment
 
   def find_member
     unless !!self.member
-      self.member = Member.search(self.payer_email).first unless self.payer_email.nil?
-      self.member ||= Member.search(self.lastname).first unless self.lastname.nil?
-      self.member ||= Member.search(self.firstname).first unless self.firstname.nil?
+      # Use direct field queries instead of Member.search (which requires Atlas Search index)
+      self.member = Member.find_by(email: self.payer_email) unless self.payer_email.nil?
+      self.member ||= Member.find_by(lastname: self.lastname) unless self.lastname.nil?
+      self.member ||= Member.find_by(firstname: self.firstname) unless self.firstname.nil?
       if !self.member && self.payer_email then
         payments = Payment.where(member: !nil, payer_email: self.payer_email).order_by(payment_date: :desc);
         self.member = payments.first.member unless payments.empty?
