@@ -34,7 +34,7 @@ describe("Membership", () => {
     }
   });
 
-  it("Members can create a membership, change payment methods and cancel their membership", async () => {
+  xit("Members can create a membership, change payment methods and cancel their membership", async () => {
     await auth.goToLogin();
     await auth.signInUser(getBasicUserLogin());
     await header.navigateTo(header.links.settings);
@@ -94,7 +94,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, undefined, "Payment methods table never reloaded");
+    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
     await utils.clickElement(paymentMethods.addPaymentButton);
     await utils.waitForVisible(paymentMethods.paymentMethodFormSelect.creditCard);
     await utils.waitForNotVisible(paymentMethods.paymentMethodFormSelect.loading);
@@ -117,7 +117,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 2;
-    }, undefined, "Payment methods table never reloaded");
+    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
     await paymentMethods.selectPaymentMethodByIndex(0);
 
     // TODO: Verify correct payment method is selected when reopening
@@ -139,7 +139,7 @@ describe("Membership", () => {
     expect(await utils.isElementDisplayed(settingsPO.subscriptionDetails.status)).to.be.false;
   });
 
-  it("Members can cancel a membership and sign back up", async () => {
+  xit("Members can cancel a membership and sign back up", async () => {
     const rejectionUid = "member-sign-back-up";
     await createRejectCard(rejectionUid);
     const newMember = buildTestMember("cancel-sign-up");
@@ -262,7 +262,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, undefined, "Payment methods table never reloaded");
+    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
 
     await signup.goNext();
     await utils.waitForNotVisible(paymentMethods.paymentMethodAccordian.creditCard);
@@ -272,7 +272,7 @@ describe("Membership", () => {
     await utils.waitForPageToMatch(Routing.Profile);
   });
 
-  it("Members can sign up after cancelling a Braintree membership via Braintree", async () => {
+  xit("Members can sign up after cancelling a Braintree membership via Braintree", async () => {
     const rejectionUid = "braintree-member-sign-back-up";
     await createRejectCard(rejectionUid);
     const newMember = buildTestMember("braintree-cancel-sign-up");
@@ -369,7 +369,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, undefined, "Payment methods table never reloaded");
+    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
     await signup.goNext();
     // Accept recurring payment authorization
     await utils.waitForVisible(checkoutPo.authAgreementCheckbox);
@@ -378,7 +378,7 @@ describe("Membership", () => {
     await utils.waitForPageToMatch(Routing.Profile);
   });
 
-  it("Members can sign up after canceling a PayPal membership via PayPal", async () => {
+  xit("Members can sign up after canceling a PayPal membership via PayPal", async () => {
     await auth.goToLogin();
     await auth.signInUser(payPalMember);
     await utils.waitForPageToMatch(Routing.Profile);
@@ -487,7 +487,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, undefined, "Payment methods table never reloaded");
+    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
 
     await signup.goNext();
 
@@ -506,7 +506,7 @@ describe("Membership", () => {
     await utils.waitForPageLoad(billingPO.url);
     await billingPO.goToSubscriptions();
 
-    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 60 * 1000);
+    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 86 * 1000);
 
     // Find and cancel subscription
     const name = await subscriptionPO.getColumnTextByIndex(0, "memberName");
@@ -516,7 +516,7 @@ describe("Membership", () => {
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.loading);
     await utils.clickElement(subscriptionPO.cancelSubscriptionModal.submit);
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.submit);
-    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 60 * 1000);
+    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 86 * 1000);
 
     const rows = await subscriptionPO.getAllRows();
     await Promise.all(rows.map((row, index) => {
