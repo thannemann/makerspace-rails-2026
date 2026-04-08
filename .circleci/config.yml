@@ -24,8 +24,10 @@ jobs:
             which ruby
             cat Gemfile | grep ^ruby || echo "no ruby version in Gemfile"
 
-      - browser-tools/install-chrome
-      - browser-tools/install-chromedriver
+      - browser-tools/install-chrome:
+          chrome-version: "114.0.5735.90"
+      - browser-tools/install-chromedriver:
+          chromedriver-version: "114.0.5735.90"
 
       - run:
           name: Install Bundler 1.17.3
