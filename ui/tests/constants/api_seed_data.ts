@@ -5,17 +5,13 @@ export const basicUserLogins = new Array(5).fill(undefined).map((_, index) => ({
   email: `basic_member${index}@test.com`,
   password: "password"
 }));
-
-let basicIndex = 0;
-export const getBasicUserLogin = () => basicUserLogins[basicIndex++ % basicUserLogins.length];
+export const getBasicUserLogin = () => basicUserLogins.length && basicUserLogins.pop();
 
 export const adminUserLogins = new Array(5).fill(undefined).map((_, index) => ({
   email: `admin_member${index}@test.com`,
   password: "password"
 }));
-
-let adminIndex = 0;
-export const getAdminUserLogin = () => adminUserLogins[adminIndex++ % adminUserLogins.length];
+export const getAdminUserLogin = () => adminUserLogins.length && adminUserLogins.pop();
 
 export const paypalUserLogins = new Array(5).fill(undefined).map((_, index) => ({
   email: `paypal_member${index}@test.com`,
