@@ -17,8 +17,10 @@ jobs:
             which ruby
             cat Gemfile | grep ^ruby || echo "no ruby version in Gemfile"
       - run:
-          name: Install Chrome and ChromeDriver
-          command: |
+        name: Install Chrome and ChromeDriver
+        command: |
+            sudo apt-get update
+            sudo apt-get install -y libu2f-udev libvulkan1
             wget -q https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.90-1_amd64.deb
             sudo apt-get install -y ./google-chrome-stable_114.0.5735.90-1_amd64.deb
             wget -q https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
