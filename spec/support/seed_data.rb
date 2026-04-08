@@ -22,7 +22,8 @@ class SeedData
       create(:member,
         email: "basic_member#{n}@test.com",
         firstname: "Basic",
-        lastname: "Member#{n}"
+        lastname: "Member#{n}",
+        expirationTime: (Time.now + 1.year).to_i * 1000
       )
     end
     5.times do |n|
