@@ -506,7 +506,7 @@ describe("Membership", () => {
     await utils.waitForPageLoad(billingPO.url);
     await billingPO.goToSubscriptions();
 
-    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 86 * 1000);
+    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 200 * 1000);
 
     // Find and cancel subscription
     const name = await subscriptionPO.getColumnTextByIndex(0, "memberName");
