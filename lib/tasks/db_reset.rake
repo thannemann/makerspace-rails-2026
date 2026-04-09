@@ -1,3 +1,5 @@
+require 'timeout'
+
 namespace :db do
   desc "Clears the db for testing."
   task :db_reset, [:options] => :environment do |t, args|
@@ -41,26 +43,29 @@ namespace :db do
   end
 
   task :braintree_webhook, [:member_email] => :environment do |t, args|
-    if args[:member_email] then 
-      member = Member.find_by(email: args[:member_email])
-      invoice = Invoice.active_invoice_for_resource(member.id)
-      sample_notification = ::Service::BraintreeGateway.connect_gateway.webhook_testing.sample_notification(
-        Braintree::WebhookNotification::Kind::SubscriptionCanceled,
-        invoice.subscription_id
-      )
-
-      session = ActionDispatch::Integration::Session.new(Rails.application)
-      session.post "/billing/braintree_listener", { params: sample_notification }
+    if args[:member_email]
+      Timeout::timeout(30) do
+        member = Member.find_by(email: args[:member_email])
+        invoice = Invoice.active_invoice_for_resource(member.id)
+        sample_notification = ::Service::BraintreeGateway.connect_gateway.webhook_testing.sample_notification(
+          Braintree::WebhookNotification::Kind::SubscriptionCanceled,
+          invoice.subscription_id
+        )
+        session = ActionDispatch::Integration::Session.new(Rails.application)
+        session.post "/billing/braintree_listener", { params: sample_notification }
+      end
     end
   end
 
   task :paypal_webhook, [:member_email] => :environment do |t, args|
-    if args[:member_email] then 
-      session = ActionDispatch::Integration::Session.new(Rails.application)
-      session.post "/ipnlistener", { params: { 
-        "payer_email" => args[:member_email],
-        "txn_type": "subscr_cancel"
+    if args[:member_email]
+      Timeout::timeout(30) do
+        session = ActionDispatch::Integration::Session.new(Rails.application)
+        session.post "/ipnlistener", { params: { 
+          "payer_email" => args[:member_email],
+          "txn_type": "subscr_cancel"
         } }
+      end
     end
   end
 end
