@@ -67,6 +67,7 @@ jobs:
       - run:
           name: E2E
           command: bundle exec rake integration
+          no_output_timeout: 30m
       - run:
           name: UT
           command: bundle exec rspec
