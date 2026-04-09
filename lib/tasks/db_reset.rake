@@ -78,8 +78,8 @@ def cancel_subscriptions(gateway)
     )
   end)
   results = subscriptions.map do |subscription|
-    result = ::BraintreeService::Subscription.cancel(gateway, subscription.id)
-  end
+    ::BraintreeService::Subscription.cancel(gateway, subscription.id)
+  end.compact
   evaluate_results(results)
 end
 
