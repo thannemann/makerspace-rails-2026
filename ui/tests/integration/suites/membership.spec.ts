@@ -508,7 +508,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const rows = await subscriptionPO.getAllRows();
       return rows.length > 0;
-      }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
+    }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
 
     // Find and cancel subscription
     const name = await subscriptionPO.getColumnTextByIndex(0, "memberName");
@@ -521,7 +521,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const rows = await subscriptionPO.getAllRows();
       return rows.length > 0;
-      }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
+    }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
 
     const rows = await subscriptionPO.getAllRows();
     await Promise.all(rows.map((row, index) => {
