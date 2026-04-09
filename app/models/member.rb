@@ -95,6 +95,9 @@ class Member
       begin
         results = Member.collection.aggregate(pipeline)
         result_ids = results.collect { |r| r[:_id] }
+        if result_ids.empty?
+          return Member.any_of({ email: searchTerms })
+        end
         members = Member.where(id: { :$in => result_ids })
         return members.sort_by { |m| result_ids.to_a.index m.id }
       rescue Mongo::Error::OperationFailure
@@ -127,6 +130,13 @@ class Member
       begin
         results = Member.collection.aggregate(pipeline)
         result_ids = results.collect { |r| r[:_id] }
+        if result_ids.empty?
+          return Member.any_of(
+            { lastname: searchTerms },
+            { firstname: searchTerms },
+            { email: searchTerms }
+          )
+        end
         members = Member.where(id: { :$in => result_ids })
         return members.sort_by { |m| result_ids.to_a.index m.id }
       rescue Mongo::Error::OperationFailure
