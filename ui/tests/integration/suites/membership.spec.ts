@@ -34,7 +34,7 @@ describe("Membership", () => {
     }
   });
 
-  xit("Members can create a membership, change payment methods and cancel their membership", async () => {
+  it("Members can create a membership, change payment methods and cancel their membership", async () => {
     await auth.goToLogin();
     await auth.signInUser(getBasicUserLogin());
     await header.navigateTo(header.links.settings);
@@ -139,7 +139,7 @@ describe("Membership", () => {
     expect(await utils.isElementDisplayed(settingsPO.subscriptionDetails.status)).to.be.false;
   });
 
-  xit("Members can cancel a membership and sign back up", async () => {
+  it("Members can cancel a membership and sign back up", async () => {
     const rejectionUid = "member-sign-back-up";
     await createRejectCard(rejectionUid);
     const newMember = buildTestMember("cancel-sign-up");
@@ -272,7 +272,7 @@ describe("Membership", () => {
     await utils.waitForPageToMatch(Routing.Profile);
   });
 
-  xit("Members can sign up after cancelling a Braintree membership via Braintree", async () => {
+  it("Members can sign up after cancelling a Braintree membership via Braintree", async () => {
     const rejectionUid = "braintree-member-sign-back-up";
     await createRejectCard(rejectionUid);
     const newMember = buildTestMember("braintree-cancel-sign-up");
@@ -378,7 +378,7 @@ describe("Membership", () => {
     await utils.waitForPageToMatch(Routing.Profile);
   });
 
-  xit("Members can sign up after canceling a PayPal membership via PayPal", async () => {
+  it("Members can sign up after canceling a PayPal membership via PayPal", async () => {
     await auth.goToLogin();
     await auth.signInUser(payPalMember);
     await utils.waitForPageToMatch(Routing.Profile);
@@ -505,8 +505,10 @@ describe("Membership", () => {
     await header.navigateTo(header.links.billing);
     await utils.waitForPageLoad(billingPO.url);
     await billingPO.goToSubscriptions();
-    await subscriptionPO.getRowByIndex(0); // wait for first row
-    //await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 200 * 1000);
+    await browser.waitUntil(async () => {
+      const rows = await subscriptionPO.getAllRows();
+      return rows.length > 0;
+      }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
 
     // Find and cancel subscription
     const name = await subscriptionPO.getColumnTextByIndex(0, "memberName");
@@ -516,8 +518,10 @@ describe("Membership", () => {
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.loading);
     await utils.clickElement(subscriptionPO.cancelSubscriptionModal.submit);
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.submit);
-    await subscriptionPO.getRowByIndex(0); // wait for first row
-    //await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 200 * 1000);
+    await browser.waitUntil(async () => {
+      const rows = await subscriptionPO.getAllRows();
+      return rows.length > 0;
+      }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
 
     const rows = await subscriptionPO.getAllRows();
     await Promise.all(rows.map((row, index) => {
