@@ -94,7 +94,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
+    }, undefined, "Payment methods table never reloaded");
     await utils.clickElement(paymentMethods.addPaymentButton);
     await utils.waitForVisible(paymentMethods.paymentMethodFormSelect.creditCard);
     await utils.waitForNotVisible(paymentMethods.paymentMethodFormSelect.loading);
@@ -117,7 +117,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 2;
-    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
+    }, undefined, "Payment methods table never reloaded");
     await paymentMethods.selectPaymentMethodByIndex(0);
 
     // TODO: Verify correct payment method is selected when reopening
@@ -262,7 +262,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
+    }, undefined, "Payment methods table never reloaded");
 
     await signup.goNext();
     await utils.waitForNotVisible(paymentMethods.paymentMethodAccordian.creditCard);
@@ -369,7 +369,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
+    }, undefined, "Payment methods table never reloaded");
     await signup.goNext();
     // Accept recurring payment authorization
     await utils.waitForVisible(checkoutPo.authAgreementCheckbox);
@@ -487,7 +487,7 @@ describe("Membership", () => {
     await browser.waitUntil(async () => {
       const numPaymentMethods = (await paymentMethods.getPaymentMethods()).length;
       return numPaymentMethods === 1;
-    }, { timeout: 30000, timeoutMsg: "Payment methods table never reloaded" });
+    }, undefined, "Payment methods table never reloaded");
 
     await signup.goNext();
 
@@ -505,10 +505,11 @@ describe("Membership", () => {
     await header.navigateTo(header.links.billing);
     await utils.waitForPageLoad(billingPO.url);
     await billingPO.goToSubscriptions();
+
     await browser.waitUntil(async () => {
       const rows = await subscriptionPO.getAllRows();
       return rows.length > 0;
-    }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
+    }, 120000, 'Subscriptions table never loaded');
 
     // Find and cancel subscription
     const name = await subscriptionPO.getColumnTextByIndex(0, "memberName");
@@ -518,10 +519,11 @@ describe("Membership", () => {
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.loading);
     await utils.clickElement(subscriptionPO.cancelSubscriptionModal.submit);
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.submit);
+    
     await browser.waitUntil(async () => {
       const rows = await subscriptionPO.getAllRows();
       return rows.length > 0;
-    }, { timeout: 120000, timeoutMsg: 'Subscriptions table never loaded' });
+    }, 120000, 'Subscriptions table never loaded');
 
     const rows = await subscriptionPO.getAllRows();
     await Promise.all(rows.map((row, index) => {
