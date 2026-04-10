@@ -27,7 +27,22 @@ export class TablePageObject {
 
   public getRowBaseId = (rowId: string): string => `${this.tableId}-${rowId}`;
   public getRow = async (rowId: string) => await browser.$(`#${this.getRowBaseId(rowId)}-row`);
-  public getAllRows = async () => await browser.$$(`[id^="${this.tableId}-"][id$="-row"]`);
+  public getAllRows = async () => {
+    const rows = await browser.$$(`[id^="${this.tableId}-"][id$="-row"]`);
+    const excludedRowIds = new Set([
+      `${this.tableId}-error-row`,
+      `${this.tableId}-no-data-row`
+    ]);
+
+    const rowsWithIds = await Promise.all(rows.map(async (row) => ({
+      row,
+      id: await row.getAttribute("id")
+    })));
+
+    return rowsWithIds
+      .filter(({ id }) => !id || !excludedRowIds.has(id))
+      .map(({ row }) => row);
+  };
 
   public getColumnIds = (fields: string[], rowId: string): { [key: string]: string } => ({
     ...fields.reduce((columns: { [key: string]: string }, field) => ({
@@ -35,13 +50,15 @@ export class TablePageObject {
       [field]: `#${this.getRowBaseId(rowId)}-${field}`
     }), {})
   });
+
   public getColumnText = async (field: string, rowId: string): Promise<string> => {
     return await utils.getElementText(`#${this.getRowBaseId(rowId)}-${field}`);
-  }
+  };
+
   public selectRow = async (rowId: string, check: boolean = true) => {
     const element = await browser.$(`#${this.getRowBaseId(rowId)}-select`);
     await utils.selectCheckbox(element, check);
-  }
+  };
 
   public getRowByIndex = async (index: number) => {
     const rows = await this.getAllRows();
@@ -50,21 +67,23 @@ export class TablePageObject {
 
   public selectRowByIndex = async (index: number, check: boolean = true): Promise<void> => {
     const row = await this.getRowByIndex(index);
+    expect(row, `No row found at index ${index} in table ${this.tableId}`).to.exist;
     const element = await row.$(`[id$="-select"]`);
     await utils.selectCheckbox(element, check);
-  }
+  };
 
   public getColumnByIndex = async (index: number, field: string) => {
     const row = await this.getRowByIndex(index);
+    expect(row, `No row found at index ${index} in table ${this.tableId}`).to.exist;
     const column = await row.$(`[id$="-${field}"]`);
     return column;
-  } 
+  };
 
   public getColumnTextByIndex = async (index: number, field: string): Promise<string> => {
     const column = await this.getColumnByIndex(index, field);
     const text = await column.getText();
     return text;
-  }
+  };
 
   public verifyFieldsByIndex = async <T extends { id: string }>(
     index: number,
@@ -73,7 +92,7 @@ export class TablePageObject {
   ): Promise<void> => {
     const fieldsContent: { field: string, text: string }[] = await Promise.all((this.fields as string[]).map((field: string) => {
       return new Promise(async (resolve) => {
-        const text =  await this.getColumnTextByIndex(index, field);
+        const text = await this.getColumnTextByIndex(index, field);
         resolve({
           field,
           text
@@ -82,7 +101,7 @@ export class TablePageObject {
     }));
 
     fieldsContent.forEach(fieldEvaluator(resource));
-  }
+  };
 
   public verifyFields = async <T extends { id: string }>(
     resource: T | Partial<T>,
@@ -99,7 +118,7 @@ export class TablePageObject {
     }));
 
     fieldsContent.forEach(fieldEvaluator(resource));
-  }
+  };
 
   public verifyListView = async (resourceList: any[], fieldEvaluator: Function): Promise<void> => {
     await browser.waitUntil(async () => {
@@ -109,5 +128,5 @@ export class TablePageObject {
     await Promise.all(resourceList.slice(0, 5).map(async (resource) => {
       await this.verifyFields(resource, fieldEvaluator);
     }));
-  }
+  };
 }
