@@ -40,7 +40,16 @@ class Admin::Billing::SubscriptionsController < Admin::BillingController
         search.created_at <= subscription_query_params[:end_date]
       end
 
-      query_array(subscription_query_params[:subscription_status], search.status) unless subscription_query_params[:subscription_status].nil?
+      if subscription_query_params[:subscription_status].nil?
+        search.status.in([
+          Braintree::Subscription::Status::Active,
+          Braintree::Subscription::Status::PastDue,
+          Braintree::Subscription::Status::Pending
+        ])
+      else
+        query_array(subscription_query_params[:subscription_status], search.status)
+      end
+
       query_array(subscription_query_params[:plan_id], search.plan_id) unless subscription_query_params[:plan_id].nil?
     end
   end
