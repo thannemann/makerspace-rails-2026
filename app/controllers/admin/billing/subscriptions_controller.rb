@@ -13,7 +13,7 @@ class Admin::Billing::SubscriptionsController < Admin::BillingController
   private 
   def construct_query
     Proc.new do |search|
-      unless subscription_query_params[:search].nil?
+      unless subscription_query_params[:search].nil? || subscription_query_params[:search] == "null"
         resources = Member.where(subscription_id: subscription_query_params[:search])
         if resources.count == 0
           resources ||= Rental.where(subscription_id: subscription_query_params[:search])
