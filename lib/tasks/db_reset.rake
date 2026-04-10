@@ -87,7 +87,7 @@ def cancel_subscriptions(gateway)
     puts "Found #{subscriptions.length} subscription(s) to cancel."
     subscriptions.each do |subscription|
       begin
-        gateway.subscription.cancel(subscription.id)
+        result = ::BraintreeService::Subscription.cancel(gateway, subscription.id)
         puts "Cancelled subscription #{subscription.id}"
       rescue => e
         STDERR.puts "Failed to cancel subscription #{subscription.id}: #{e.message}"
