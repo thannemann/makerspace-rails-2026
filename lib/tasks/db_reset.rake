@@ -74,15 +74,17 @@ def cancel_subscriptions(gateway)
   subscriptions = ::BraintreeService::Subscription.get_subscriptions(gateway, Proc.new do |search| 
     search.status.in(
       Braintree::Subscription::Status::Active,
-      Braintree::Subscription::Status::Expired,
       Braintree::Subscription::Status::PastDue,
       Braintree::Subscription::Status::Pending
     )
   end)
-  results = subscriptions.map do |subscription|
-    ::BraintreeService::Subscription.cancel(gateway, subscription.id)
-  end.compact
-  evaluate_results(results)
+  subscriptions.each do |subscription|
+    begin
+      gateway.subscription.cancel(subscription.id)
+    rescue => e
+      STDERR.puts "Failed to cancel subscription #{subscription.id}: #{e.message}"
+    end
+  end
 end
 
 def delete_payment_methods(gateway)
