@@ -7,19 +7,10 @@ class BraintreeService::Subscription < Braintree::Subscription
   attr_accessor :resource, :member
 
   def self.get_subscriptions(gateway, search_query = nil)
-    puts "BraintreeService::Subscription.get_subscriptions called"
-    subscriptions = gateway.subscription.search { |search| search_query && search_query.call(search) }
-    results = []
-    subscriptions.each do |subscription|
-      begin
-        results << normalize_subscription(gateway, subscription)
-      rescue => e
-        STDERR.puts "Failed to normalize subscription #{subscription.id}: #{e.message}"
-        STDERR.puts e.backtrace.first(3).join("\n")
-      end
+     subscriptions = gateway.subscription.search { |search| search_query && search_query.call(search) }
+     subscriptions.map do |subscription|
+      normalize_subscription(gateway, subscription)
     end
-    puts "Normalized #{results.length} subscription(s) successfully."
-    results
   end
 
   def self.get_subscription(gateway, id)

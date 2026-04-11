@@ -13,7 +13,7 @@ class Admin::Billing::SubscriptionsController < Admin::BillingController
   private 
   def construct_query
     Proc.new do |search|
-      unless subscription_query_params[:search].nil? || subscription_query_params[:search] == "null"
+      unless subscription_query_params[:search].nil?
         resources = Member.where(subscription_id: subscription_query_params[:search])
         if resources.count == 0
           resources ||= Rental.where(subscription_id: subscription_query_params[:search])
@@ -40,16 +40,7 @@ class Admin::Billing::SubscriptionsController < Admin::BillingController
         search.created_at <= subscription_query_params[:end_date]
       end
 
-      if subscription_query_params[:subscription_status].nil?
-        search.status.in([
-          Braintree::Subscription::Status::Active,
-          Braintree::Subscription::Status::PastDue,
-          Braintree::Subscription::Status::Pending
-        ])
-      else
-        query_array(subscription_query_params[:subscription_status], search.status)
-      end
-
+      query_array(subscription_query_params[:subscription_status], search.status) unless subscription_query_params[:subscription_status].nil?
       query_array(subscription_query_params[:plan_id], search.plan_id) unless subscription_query_params[:plan_id].nil?
     end
   end

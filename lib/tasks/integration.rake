@@ -13,6 +13,7 @@ task :integration do
   end
 
   react_git.fetch
+  react_git.checkout("RM")
 
   Dir.chdir(react_repo_dir)
   system("PORT=3035 yarn && PORT=3035 yarn build") || exit(-1)

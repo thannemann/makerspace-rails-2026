@@ -7,6 +7,7 @@ class SeedData
   def call
     create_permissions
     create_members
+    create_resource_managers
     create_rentals
     create_payments
     create_group
@@ -53,6 +54,17 @@ class SeedData
         email: "admin_member#{n}@test.com",
         firstname: "Admin",
         lastname: "Member#{n}"
+      )
+    end
+  end
+
+  def create_resource_managers
+    3.times do |n|
+      create(:member, :resource_manager,
+        email: "rm_member#{n}@test.com",
+        firstname: "Resource",
+        lastname: "Manager#{n}",
+        expirationTime: (Time.now + 1.year).to_i * 1000
       )
     end
   end
