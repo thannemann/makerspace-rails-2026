@@ -9,7 +9,6 @@ class BraintreeService::Subscription < Braintree::Subscription
   def self.get_subscriptions(gateway, search_query = nil)
     puts "BraintreeService::Subscription.get_subscriptions called"
     subscriptions = gateway.subscription.search { |search| search_query && search_query.call(search) }
-    puts "Raw subscription count from Braintree: #{subscriptions.maximum_size}"
     results = []
     subscriptions.each do |subscription|
       begin
