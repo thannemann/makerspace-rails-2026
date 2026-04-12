@@ -1,5 +1,6 @@
 class Admin::RentalsController < AdminController
   include FastQuery::MongoidQuery
+  before_action :authorized?
   before_action :set_rental, only: [:update, :destroy]
 
   def index
@@ -22,11 +23,16 @@ class Admin::RentalsController < AdminController
   end
 
   def destroy
+    raise ::Error::Forbidden.new unless is_admin?
     @rental.destroy
     render json: {}, status: 204 and return
   end
 
   private
+  def authorized?
+    raise ::Error::Forbidden.new unless is_admin? || is_resource_manager?
+  end
+
   def create_rental_params
     params.require([:number, :member_id])
     params.permit(:number, :member_id, :expiration, :description, :contract_on_file, :notes)
