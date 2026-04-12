@@ -53,3 +53,5 @@ node_modules
 # Reporter file for integration  tests and screenshots
 /spec/rspec_results.html
 *.zip
+app/assets/builds/makerspace-react.js
+app/assets/builds/makerspace-react.css
