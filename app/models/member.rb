@@ -66,9 +66,12 @@ class Member
   has_one :group, class_name: "Group", inverse_of: :member
   has_one :earned_membership, class_name: 'EarnedMembership', dependent: :destroy
 
-  # Searches members using Atlas $search if available, falls back to basic Mongoid queries
-  # for local/CI environments where Atlas Search is not supported.
+  # Searches members using Atlas $search if available, falls back to case-insensitive
+  # regex queries for local/CI environments where Atlas Search is not supported.
+  # Regex.escape prevents special characters from breaking the query.
   def self.search(searchTerms, criteria = Mongoid::Criteria.new(Member))
+    regex = /#{Regexp.escape(searchTerms)}/i
+
     if !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
       # Email search
       pipeline = [
@@ -96,12 +99,14 @@ class Member
         results = Member.collection.aggregate(pipeline)
         result_ids = results.collect { |r| r[:_id] }
         if result_ids.empty?
-          return Member.any_of({ email: searchTerms })
+          # Atlas Search returned nothing — fall back to regex contains match
+          return Member.any_of({ email: regex })
         end
         members = Member.where(id: { :$in => result_ids })
         return members.sort_by { |m| result_ids.to_a.index m.id }
       rescue Mongo::Error::OperationFailure
-        return Member.any_of({ email: searchTerms })
+        # Atlas Search not available (local/CI) — fall back to regex contains match
+        return Member.any_of({ email: regex })
       end
     else
       # Name/general search
@@ -131,19 +136,21 @@ class Member
         results = Member.collection.aggregate(pipeline)
         result_ids = results.collect { |r| r[:_id] }
         if result_ids.empty?
+          # Atlas Search returned nothing — fall back to regex contains match
           return Member.any_of(
-            { lastname: searchTerms },
-            { firstname: searchTerms },
-            { email: searchTerms }
+            { lastname: regex },
+            { firstname: regex },
+            { email: regex }
           )
         end
         members = Member.where(id: { :$in => result_ids })
         return members.sort_by { |m| result_ids.to_a.index m.id }
       rescue Mongo::Error::OperationFailure
+        # Atlas Search not available (local/CI) — fall back to regex contains match
         return Member.any_of(
-          { lastname: searchTerms },
-          { firstname: searchTerms },
-          { email: searchTerms }
+          { lastname: regex },
+          { firstname: regex },
+          { email: regex }
         )
       end
     end
