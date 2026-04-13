@@ -70,7 +70,7 @@ class Member
   # regex queries for local/CI environments where Atlas Search is not supported.
   # Regex.escape prevents special characters from breaking the query.
   def self.search(searchTerms, criteria = Mongoid::Criteria.new(Member))
-    regex = /#{Regexp.escape(searchTerms)}/i
+    regex = /#{::Regexp.escape(searchTerms)}/i
 
     if !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
       # Email search
