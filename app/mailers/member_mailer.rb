@@ -6,6 +6,12 @@ class MemberMailer < ApplicationMailer
   #   en.model_mailer.expired_member_notification.subject
   #
 
+  # Notify member that an admin has changed their password
+  def password_changed(member_id)
+    @member = Member.find(member_id)
+    mail to: @member.email, subject: "Your Manchester Makerspace password has been changed"
+  end
+
   # Sent when signing up with PayPal & sending a registration link
   def welcome_email(email)
     mail to: email, subject: "Welcome to Manchester Makerspace!"
