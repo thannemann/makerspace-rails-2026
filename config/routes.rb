@@ -27,6 +27,8 @@ Rails.application.routes.draw do
     end
 
     authenticate :member do
+      # Must be declared before resources :members to prevent members/:id from matching first
+      put "/members/change_password", to: "members/passwords#update"
       resources :members, only: [:show, :index, :update] do
         scope module: :members do
           resources :permissions, only: [:index]
@@ -55,7 +57,12 @@ Rails.application.routes.draw do
         resources :invoices, only: [:index, :create, :update, :destroy]
         resources :invoice_options, only: [:create, :update, :destroy]
         resources :rentals, only: [:create, :update, :destroy, :index]
-        resources :members, only: [:create, :update]
+        resources :members, only: [:create, :update] do
+          member do
+            post :update_password
+            post :send_password_reset
+          end
+        end
         resources :permissions, only: [:index, :update]
         resources :analytics, only: [:index]
 
