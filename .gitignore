@@ -55,3 +55,5 @@ node_modules
 *.zip
 app/assets/builds/makerspace-react.js
 app/assets/builds/makerspace-react.css
+app/assets/builds/makerspace-react.css
+app/assets/builds/makerspace-react.js
