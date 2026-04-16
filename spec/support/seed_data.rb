@@ -96,7 +96,57 @@ class SeedData
   end
 
   def create_group
-    create(:group, member: Member.where(email: 'admin_member0@test.com').first)
+    # Create a primary member on a household plan
+    primary = create(:member,
+      email: "household_primary@test.com",
+      firstname: "Household",
+      lastname: "Primary",
+      expirationTime: (Time.now + 1.year).to_i * 1000,
+      address_street: "42 Elm Street",
+      address_city: "Manchester",
+      address_state: "NH",
+      address_postal_code: "03101"
+    )
+
+    # Create a secondary member with matching address
+    secondary = create(:member,
+      email: "household_secondary@test.com",
+      firstname: "Household",
+      lastname: "Secondary",
+      expirationTime: (Time.now + 6.months).to_i * 1000,
+      address_street: "42 Elm Street",
+      address_city: "Manchester",
+      address_state: "NH",
+      address_postal_code: "03101"
+    )
+
+    # Create a household invoice for the primary member with a household plan_id
+    invoice = Invoice.create!(
+      member: primary,
+      name: "Household Membership",
+      description: "Household membership plan",
+      amount: 85.0,
+      quantity: 1,
+      plan_id: "household-membership-one-month-recurring",
+      resource_class: "member",
+      resource_id: primary.id,
+      operation: "renew=",
+      due_date: Time.now + 1.month,
+      settled_at: Time.now
+    )
+
+    # Create the Group record — groupName = primary's ID
+    group = Group.create!(
+      groupName: primary.id.to_s,
+      groupRep:  primary.fullname,
+      expiry:    primary.expirationTime
+    )
+
+    # Link both members to the group via groupName
+    primary.update!(groupName: primary.id.to_s)
+    secondary.update!(groupName: primary.id.to_s, expirationTime: primary.expirationTime)
+
+    puts "  [seed] Created household: #{primary.fullname} (primary) + #{secondary.fullname} (secondary)"
   end
 
   def create_rejection_cards
@@ -109,6 +159,7 @@ class SeedData
     create(:invoice_option, name: "One Month", amount: 65.0, id: "one-month", plan_id: "membership-one-month-recurring")
     create(:invoice_option, name: "Three Months", amount: 200.0, id: "three-months")
     create(:invoice_option, name: "One Year", amount: 800.0, id: "one-year")
+    create(:invoice_option, name: "Household Monthly Membership Subscription", amount: 125.0, id: "household-one-month", plan_id: "household-membership-one-month-recurring", description: "Membership subscription for two adults in the same household, automatically renews every month on the day the subscription started")
   end
 
   def create_permissions
