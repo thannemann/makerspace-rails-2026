@@ -63,6 +63,15 @@ Rails.application.routes.draw do
             post :send_password_reset
           end
         end
+        resources :groups, only: [:index, :show, :create, :destroy] do
+          member do
+            post :add_member
+            delete :remove_member
+          end
+          collection do
+            get :for_member
+          end
+        end
         resources :permissions, only: [:index, :update]
         resources :analytics, only: [:index]
 
