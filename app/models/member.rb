@@ -24,7 +24,7 @@ class Member
   field :status,                         default: "activeMember" # activeMember, nonMember, revoked, inactive
   field :expirationTime,  type: Integer  #pre-calcualted time of expiration
   field :startDate, default: Time.now
-  field :groupName #potentially member is in a group/partner membership
+  field :groupName, type: String #potentially member is in a group/partner membership
   field :role,                          default: "member" #admin,resource_manager,member
   field :member_contract_signed_date, type: Date
   field :subscription,    type: Boolean,   default: false
@@ -55,7 +55,7 @@ class Member
 
   after_initialize :verify_group_expiry
   after_create :apply_default_permissions, :publish_create
-  after_update :update_card, :publish_update
+  after_update :update_card, :publish_update, :check_household_exit
   after_destroy :publish_destroy
 
   has_many :permissions, class_name: 'Permission', dependent: :destroy, :autosave => true
@@ -63,7 +63,13 @@ class Member
   has_many :invoices, class_name: "Invoice"
   has_many :access_cards, class_name: "Card", inverse_of: :member
   belongs_to :group, class_name: "Group", inverse_of: :active_members, optional: true, primary_key: 'groupName', foreign_key: "groupName"
-  has_one :group, class_name: "Group", inverse_of: :member
+
+  def household_role
+    return nil unless groupName.present?
+    return :primary if self.id.to_s == groupName.to_s
+    :secondary
+  end
+
   has_one :earned_membership, class_name: 'EarnedMembership', dependent: :destroy
 
   # Searches members using Atlas $search if available, falls back to case-insensitive
@@ -256,6 +262,17 @@ class Member
     self.access_cards.each do |c|
       c.update(expiry: self.expirationTime)
     end
+  end
+
+  def check_household_exit
+    # If a secondary household member just got their own subscription, remove them from the household
+    return unless subscription_id_changed? && subscription_id.present?
+    return unless household_role == :secondary
+
+    group = self.group
+    return unless group
+
+    group.remove_subordinate(self)
   end
 
   def benefits_from_group
