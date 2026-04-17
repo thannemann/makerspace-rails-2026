@@ -4,17 +4,32 @@ Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
 class SeedData
   include FactoryBot::Syntax::Methods
 
+  # Number of Basic Members to create real Braintree sandbox subscriptions for.
+  # These members will appear on the subscription screen with their names visible.
+  SUBSCRIPTION_MEMBER_COUNT = 5
+
+  # Braintree sandbox test nonce for a valid Visa card.
+  # Nonces are single-use in production but reusable in sandbox.
+  # See: https://developer.paypal.com/braintree/docs/reference/general/testing
+  SANDBOX_PAYMENT_NONCE = "fake-valid-visa-nonce".freeze
+
+  # Plan ID must match an existing plan in your Braintree sandbox account.
+  SANDBOX_PLAN_ID = "membership-one-month-recurring".freeze
+
   def call
     create_permissions
     create_members
+    create_resource_managers
     create_rentals
     create_payments
     create_group
     create_rejection_cards
     create_invoice_options
+    create_subscriptions
   end
 
   private
+
   def create_members
     create_expired_members
     create_admins
@@ -22,7 +37,8 @@ class SeedData
       create(:member,
         email: "basic_member#{n}@test.com",
         firstname: "Basic",
-        lastname: "Member#{n}"
+        lastname: "Member#{n}",
+        expirationTime: (Time.now + 1.year).to_i * 1000
       )
     end
     5.times do |n|
@@ -56,6 +72,17 @@ class SeedData
     end
   end
 
+  def create_resource_managers
+    3.times do |n|
+      create(:member, :resource_manager,
+        email: "rm_member#{n}@test.com",
+        firstname: "Resource",
+        lastname: "Manager#{n}",
+        expirationTime: (Time.now + 1.year).to_i * 1000
+      )
+    end
+  end
+
   def create_rentals
     20.times do |n|
        create(:rental,
@@ -69,7 +96,57 @@ class SeedData
   end
 
   def create_group
-    create(:group, member: Member.where(email: 'admin_member0@test.com').first)
+    # Create a primary member on a household plan
+    primary = create(:member,
+      email: "household_primary@test.com",
+      firstname: "Household",
+      lastname: "Primary",
+      expirationTime: (Time.now + 1.year).to_i * 1000,
+      address_street: "42 Elm Street",
+      address_city: "Manchester",
+      address_state: "NH",
+      address_postal_code: "03101"
+    )
+
+    # Create a secondary member with matching address
+    secondary = create(:member,
+      email: "household_secondary@test.com",
+      firstname: "Household",
+      lastname: "Secondary",
+      expirationTime: (Time.now + 6.months).to_i * 1000,
+      address_street: "42 Elm Street",
+      address_city: "Manchester",
+      address_state: "NH",
+      address_postal_code: "03101"
+    )
+
+    # Create a household invoice for the primary member with a household plan_id
+    invoice = Invoice.create!(
+      member: primary,
+      name: "Household Membership",
+      description: "Household membership plan",
+      amount: 85.0,
+      quantity: 1,
+      plan_id: "household-membership-one-month-recurring",
+      resource_class: "member",
+      resource_id: primary.id,
+      operation: "renew=",
+      due_date: Time.now + 1.month,
+      settled_at: Time.now
+    )
+
+    # Create the Group record — groupName = primary's ID
+    group = Group.create!(
+      groupName: primary.id.to_s,
+      groupRep:  primary.fullname,
+      expiry:    primary.expirationTime
+    )
+
+    # Link both members to the group via groupName
+    primary.update!(groupName: primary.id.to_s)
+    secondary.update!(groupName: primary.id.to_s, expirationTime: primary.expirationTime)
+
+    puts "  [seed] Created household: #{primary.fullname} (primary) + #{secondary.fullname} (secondary)"
   end
 
   def create_rejection_cards
@@ -82,11 +159,87 @@ class SeedData
     create(:invoice_option, name: "One Month", amount: 65.0, id: "one-month", plan_id: "membership-one-month-recurring")
     create(:invoice_option, name: "Three Months", amount: 200.0, id: "three-months")
     create(:invoice_option, name: "One Year", amount: 800.0, id: "one-year")
+    create(:invoice_option, name: "Household Monthly Membership Subscription", amount: 125.0, id: "household-one-month", plan_id: "household-membership-one-month-recurring", description: "Membership subscription for two adults in the same household, automatically renews every month on the day the subscription started")
   end
 
   def create_permissions
     DefaultPermission.create(name: :billing, enabled: true)
     DefaultPermission.create(name: :custom_billing, enabled: false)
     DefaultPermission.create(name: :earned_membership, enabled: true)
+  end
+
+  # Creates real Braintree sandbox subscriptions for the first N Basic Members.
+  # Mirrors the full production flow:
+  #   1. Create a Braintree customer for the member
+  #   2. Add a payment method using a sandbox test nonce
+  #   3. Create a subscription using that payment method token
+  #   4. Store subscription_id and customer_id back on the MongoDB member
+  # This ensures the subscription screen shows member names correctly after every reseed.
+  def create_subscriptions
+    gateway = Service::BraintreeGateway.connect_gateway
+    invoice_option = InvoiceOption.find("one-month")
+
+    SUBSCRIPTION_MEMBER_COUNT.times do |n|
+      member = Member.find_by(email: "basic_member#{n}@test.com")
+      next unless member
+
+      begin
+        # Step 1 — Create Braintree customer
+        customer_result = gateway.customer.create(
+          first_name: member.firstname,
+          last_name: member.lastname,
+          email: member.email,
+          payment_method_nonce: SANDBOX_PAYMENT_NONCE
+        )
+
+        unless customer_result.success?
+          puts "  [seed] Warning: Failed to create Braintree customer for #{member.fullname}: #{customer_result.message}"
+          next
+        end
+
+        customer = customer_result.customer
+        payment_method_token = customer.payment_methods.first.token
+
+        # Store customer_id on member
+        member.update!(customer_id: customer.id)
+
+        # Step 2 — Create invoice in MongoDB (needed to generate subscription ID)
+        invoice = Invoice.create!(
+          member: member,
+          name: invoice_option.name,
+          description: invoice_option.description,
+          amount: invoice_option.amount,
+          quantity: invoice_option.quantity,
+          plan_id: invoice_option.plan_id,
+          payment_method_id: payment_method_token,
+          resource_class: "member",
+          resource_id: member.id,
+          operation: invoice_option.operation,
+          due_date: Time.now + 1.month
+        )
+
+        # Step 3 — Create Braintree subscription using generated ID
+        subscription_id = invoice.generate_subscription_id
+        sub_result = gateway.subscription.create(
+          payment_method_token: payment_method_token,
+          plan_id: SANDBOX_PLAN_ID,
+          id: subscription_id
+        )
+
+        unless sub_result.success?
+          puts "  [seed] Warning: Failed to create Braintree subscription for #{member.fullname}: #{sub_result.message}"
+          next
+        end
+
+        # Step 4 — Store subscription_id on member and mark invoice as settled
+        member.update!(subscription_id: subscription_id, subscription: true)
+        invoice.update!(subscription_id: subscription_id, settled_at: Time.now)
+
+        puts "  [seed] Created subscription for #{member.fullname}: #{subscription_id}"
+
+      rescue => e
+        puts "  [seed] Error creating subscription for basic_member#{n}: #{e.message}"
+      end
+    end
   end
 end

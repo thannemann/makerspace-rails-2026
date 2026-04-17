@@ -1,45 +1,106 @@
 version: 2.1
-orbs:
-  ruby: circleci/ruby@0.1.2
-
 jobs:
   build:
     docker:
-      - image: circleci/ruby:2.6.6-stretch-node-browsers
+      - image: cimg/ruby:2.6.9-browsers
+      - image: mongo:4.4
+        environment:
+          MONGO_INITDB_DATABASE: makerspace_test
       - image: redis
-    executor: ruby/default
+    resource_class: large
     steps:
       - checkout
       - run:
-          name: Which bundler?
-          command: bundle -v
-      - ruby/bundle-install
+          name: Check environment
+          command: |
+            ruby -v
+            which ruby
+            cat Gemfile | grep ^ruby || echo "no ruby version in Gemfile"
       - run:
-          name: UT
-          command: bundle exec rspec
+          name: Install Chrome and ChromeDriver
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y libu2f-udev libvulkan1
+            wget -q https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.90-1_amd64.deb
+            sudo apt-get install -y ./google-chrome-stable_114.0.5735.90-1_amd64.deb
+            wget -q https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+            unzip chromedriver_linux64.zip
+            sudo mv chromedriver /usr/local/bin/chromedriver
+            sudo chmod +x /usr/local/bin/chromedriver
+            google-chrome --version
+            chromedriver --version
+      - run:
+          name: Install Bundler 1.17.3
+          command: |
+            gem install bundler:1.17.3
+            bundle -v
+            node -v
+            ruby -v
+      - restore_cache:
+          keys:
+            - bundle-v1-{{ checksum "Gemfile.lock" }}
+            - bundle-v1-
+      - run:
+          name: Bundle install
+          command: bundle install --path vendor/bundle --jobs 4 --retry 3
+      - save_cache:
+          key: bundle-v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+      - run:
+          name: Wait for MongoDB
+          command: |
+            for i in $(seq 1 30); do
+              mongo --eval "db.runCommand({ ping: 1 })" --quiet && break
+              echo "Waiting for mongo... ($i)"
+              sleep 2
+            done
+      - run:
+          name: Create mongoid_search indexes
+          command: |
+            bundle exec rails runner "
+              Mongoid.purge!
+              Member.create_indexes
+              Payment.create_indexes
+              puts 'Indexes created'
+            "
       - run:
           name: E2E
           command: bundle exec rake integration
+          no_output_timeout: 30m
+      - run:
+          name: UT
+          command: bundle exec rspec
       - store_artifacts:
           path: ./tmp/makerspace-react/tmp/screenshots
   publish:
     docker:
-      - image: circleci/ruby:2.6.6-stretch-node-browsers
-    executor: ruby/default
+      - image: cimg/ruby:2.6.9-browsers
+    resource_class: large
     steps:
       - checkout
       - run:
-          name: Which bundler?
-          command: bundle -v
-      - ruby/bundle-install
+          name: Install Bundler 1.17.3
+          command: |
+            gem install bundler:1.17.3
+            bundle -v
+      - restore_cache:
+          keys:
+            - bundle-v1-{{ checksum "Gemfile.lock" }}
+            - bundle-v1-
+      - run:
+          name: Bundle install
+          command: bundle install --path vendor/bundle --jobs 4 --retry 3
+      - save_cache:
+          key: bundle-v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
       - run:
           name: Publish
           command: |
-            git config --global -l
             git config --global user.email circleci@circleci
             git config --global user.name CircleCI
             bundle exec rake publish
-
 workflows:
   workflow:
     jobs:
@@ -48,3 +109,5 @@ workflows:
           filters:
             branches:
               only: master
+          requires:
+            - build

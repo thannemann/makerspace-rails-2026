@@ -18,7 +18,7 @@ exports.config = {
     waitForTimeout: 5 * 1000,
     mochaOpts: {
         ui: "bdd",
-        retries: 3,
+        retries: 1,  // was 3, but 1 is sufficient to catch most flakiness and reduces test time
         timeout: 12 * 60 * 1000,
         require: [
             "tsconfig-paths/register"
@@ -79,7 +79,7 @@ exports.config = {
             // Set to a width of 900 b/c the dev tools panel is open and included in this size
             await browser.setWindowSize(900, 1136)
         } else {
-            await browser.maximizeWindow()
+            await browser.setWindowSize(1920, 1080)
         }
     },
     async afterTest(

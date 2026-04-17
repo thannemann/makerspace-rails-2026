@@ -24,6 +24,31 @@ RSpec.describe Member, type: :model do
   describe "ActiveModel validations" do
     it { is_expected.to validate_presence_of(:firstname) }
     it { is_expected.to validate_presence_of(:lastname) }
+
+    describe "role validation" do
+      it "accepts 'admin' as a valid role" do
+        member = build(:member, :admin)
+        expect(member).to be_valid
+      end
+
+      it "accepts 'resource_manager' as a valid role" do
+        member = build(:member, :resource_manager)
+        expect(member).to be_valid
+      end
+
+      it "accepts 'member' as a valid role" do
+        member = build(:member)
+        expect(member.role).to eq('member')
+        expect(member).to be_valid
+      end
+
+      it "rejects an unknown role" do
+        member = build(:member)
+        member.role = 'superuser'
+        expect(member).not_to be_valid
+        expect(member.errors[:role]).not_to be_empty
+      end
+    end
     it { is_expected.to validate_uniqueness_of(:email) }
     it { is_expected.to have_many(:access_cards).as_inverse_of(:member) }
   end

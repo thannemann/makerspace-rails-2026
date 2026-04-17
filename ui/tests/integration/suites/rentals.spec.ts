@@ -32,6 +32,11 @@ describe("Rentals", () => {
     await utils.waitForNotVisible(memberPo.membersList.loading);
     await utils.fillSearchInput(memberPo.membersList.searchInput, getBasicUserLogin().email);
     await utils.waitForNotVisible(memberPo.membersList.loading);
+    await browser.waitUntil(
+      async () => (await memberPO.getAllRows()).length > 0,
+      undefined,
+      "Members list never populated after search"
+    );
     const link = await memberPO.getColumnByIndex(0, "lastname");
     const memberName: string = await link.getText();
     await (await link.$("a")).click();

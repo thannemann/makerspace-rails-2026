@@ -12,6 +12,7 @@
       "@mockserver": ["../tests/functional/mockserver"],
     },
     "types": [
+      "jasmine",
       "node",
       "@wdio/mocha-framework",
       "webdriverio"

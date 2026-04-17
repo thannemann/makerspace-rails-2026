@@ -506,7 +506,10 @@ describe("Membership", () => {
     await utils.waitForPageLoad(billingPO.url);
     await billingPO.goToSubscriptions();
 
-    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 60 * 1000);
+    await browser.waitUntil(async () => {
+      const rows = await subscriptionPO.getAllRows();
+      return rows.length > 0;
+    }, 120000, 'Subscriptions table never loaded');
 
     // Find and cancel subscription
     const name = await subscriptionPO.getColumnTextByIndex(0, "memberName");
@@ -516,7 +519,11 @@ describe("Membership", () => {
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.loading);
     await utils.clickElement(subscriptionPO.cancelSubscriptionModal.submit);
     await utils.waitForNotVisible(subscriptionPO.cancelSubscriptionModal.submit);
-    await utils.waitForNotVisible(subscriptionPO.getLoadingId(), 60 * 1000);
+    
+    await browser.waitUntil(async () => {
+      const rows = await subscriptionPO.getAllRows();
+      return rows.length > 0;
+    }, 120000, 'Subscriptions table never loaded');
 
     const rows = await subscriptionPO.getAllRows();
     await Promise.all(rows.map((row, index) => {

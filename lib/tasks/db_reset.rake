@@ -1,7 +1,6 @@
-
 namespace :db do
   desc "Clears the db for testing."
-  task :db_reset => :environment do
+  task :db_reset, [:options] => :environment do |t, args|
     if Rails.env.test?
       require 'factory_bot'
       require 'database_cleaner'
@@ -11,13 +10,12 @@ namespace :db do
       Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
       DatabaseCleaner.strategy = :truncation
       DatabaseCleaner.clean
+      FactoryBot.rewind_sequences
 
       # Collect extra arguments
-      braintree_options = ARGV.drop(1)
-                              .select { |argv| argv =~ /^[a-z]+$/ }
-                              .map { |argv| argv.to_sym }
+      braintree_options = (args[:options] || "").split(",").map(&:to_sym)
 
-      if braintree_options.length
+      if braintree_options.length > 0
         gateway = ::Service::BraintreeGateway.connect_gateway
         cancel_subscriptions(gateway) if braintree_options.include?(:subscriptions)
         delete_payment_methods(gateway) if braintree_options.include?(:payment_methods)
@@ -77,8 +75,8 @@ def cancel_subscriptions(gateway)
     )
   end)
   results = subscriptions.map do |subscription|
-    result = ::BraintreeService::Subscription.cancel(gateway, subscription.id)
-  end
+    ::BraintreeService::Subscription.cancel(gateway, subscription.id)
+  end.compact
   evaluate_results(results)
 end
 
