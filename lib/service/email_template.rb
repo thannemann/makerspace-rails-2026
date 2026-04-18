@@ -19,10 +19,9 @@ module Service
 
       begin
         drive = ::Service::GoogleDrive.load_gdrive
-        content = ""
-        drive.export_file(file_id, "text/html", download_dest: StringIO.new.tap { |io| 
-          drive.export_file(file_id, "text/html") { |chunk| content << chunk }
-        })
+        buffer = StringIO.new
+        drive.export_file(file_id, "text/html", download_dest: buffer)
+        content = buffer.string
         body = extract_body(content)
         substitute(body, variables)
       rescue => e
