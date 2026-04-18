@@ -55,7 +55,7 @@ class Member
 
   after_initialize :verify_group_expiry
   after_create :apply_default_permissions, :publish_create
-  after_update :update_card, :publish_update, :check_household_exit
+  after_update :update_card, :publish_update, :check_household_exit, :sync_expiration_to_group
   after_destroy :publish_destroy
 
   has_many :permissions, class_name: 'Permission', dependent: :destroy, :autosave => true
@@ -168,6 +168,8 @@ class Member
 
   def verify_group_expiry
     if self.group
+      # Primary member drives the group expiry — don't overwrite their expiration
+      return if household_role == :primary
       #make sure member benefits from group expTime
       if benefits_from_group
         self.expirationTime = self.group.expiry
@@ -273,6 +275,14 @@ class Member
     return unless group
 
     group.remove_subordinate(self)
+  end
+
+  def sync_expiration_to_group
+    return unless expirationTime_changed?
+    return unless household_role == :primary
+    group = self.group
+    return unless group
+    group.update_expiration(self.expirationTime)
   end
 
   def benefits_from_group
