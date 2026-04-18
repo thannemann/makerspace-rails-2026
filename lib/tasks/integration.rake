@@ -4,7 +4,7 @@ desc 'Run integration tests for frontend library'
 task :integration do
   rails_repo_dir = File.expand_path(".")
   react_repo_dir = File.expand_path("tmp/makerspace-react");
-  react_repo_url = "https://github.com/thannemann/makerspace-react.git"
+  react_repo_url = ENV["REACT_REPO_URL"] || "https://github.com/thannemann/makerspace-react.git"
   if !File.directory?(react_repo_dir)
     react_git = Git.clone(react_repo_url, react_repo_dir, log: Logger.new("/dev/null")) # Silence logs to prevent cred leak
   else
@@ -13,7 +13,7 @@ task :integration do
   end
 
   react_git.fetch
-  react_git.checkout("RM")
+  react_git.checkout(ENV["REACT_BRANCH"] || "master")
 
   Dir.chdir(react_repo_dir)
   system("PORT=3035 yarn && PORT=3035 yarn build") || exit(-1)
