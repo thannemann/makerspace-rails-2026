@@ -73,7 +73,7 @@ Rails.application.configure do
         :port => 2525,
         :authentication => :plain
       }
-    rescue => e
+    rescue RestClient::Exception, StandardError => e
       $stderr.puts "Mailtrap setup failed: #{e.message} — email delivery disabled"
       config.action_mailer.perform_deliveries = false
     end
