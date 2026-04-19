@@ -2,4 +2,5 @@ build:
   docker:
     web: Dockerfile
   config:
-    ENVIRONMENT: production
+    REACT_REPO_URL: REACT_REPO_URL
+    REACT_BRANCH: REACT_BRANCH
