@@ -1,19 +1,17 @@
-# Build UI
+# Build UI — clone from GitHub
 
-FROM node:16.20 AS ui
+FROM node:16-bullseye AS ui
 
-WORKDIR /app
+ARG REACT_REPO_URL
+ARG REACT_BRANCH=master
 
-COPY ui/package.json ui/yarn.lock ./ui/
+RUN apt-get update -qq && apt-get install -y -qq git
 
-WORKDIR /app/ui
-RUN yarn install
-WORKDIR /app
+WORKDIR /react
 
-COPY . .
+RUN git clone --branch ${REACT_BRANCH} ${REACT_REPO_URL} .
 
-WORKDIR /app/ui
-RUN yarn build
+RUN yarn install && PORT=3000 yarn build
 
 # Build backend
 
@@ -32,7 +30,8 @@ ENV RAILS_ENV=$ENVIRONMENT
 
 COPY . .
 
-COPY --from=ui /app/app/assets/builds/makerspace-react.js /app/app/assets/builds/makerspace-react.css /app/app/assets/builds/
+RUN mkdir -p /app/app/assets/builds
+COPY --from=ui /react/dist/makerspace-react.js /react/dist/makerspace-react.css /app/app/assets/builds/
 
 # RUN bundle exec rails assets:precompile
 
