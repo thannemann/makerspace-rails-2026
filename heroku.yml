@@ -1,6 +1,6 @@
 build:
   docker:
     web: Dockerfile
-  config:
-    REACT_REPO_URL: REACT_REPO_URL
-    REACT_BRANCH: REACT_BRANCH
+  args:
+    REACT_REPO_URL: $REACT_REPO_URL
+    REACT_BRANCH: $REACT_BRANCH
