@@ -6,27 +6,28 @@ class Rental
   include ActiveModel::Serializers::JSON
   include Publishable
 
-  STATUSES = %w[pending active cancelled denied].freeze
+  STATUSES = %w[pending active vacating cancelled denied].freeze
 
   belongs_to :member
 
   field :number
   field :description
   field :expiration,           type: Integer
-  field :subscription_id,      type: String   # Braintree subscription
+  field :subscription_id,      type: String
   field :contract_signed_date, type: Date
   field :notes,                type: String
-  field :status,               type: String,  default: "active"
-  field :rental_spot_id,       type: String   # references RentalSpot
+  field :status,               type: String, default: "active"
+  field :rental_spot_id,       type: String
 
   search_in :number, member: %i[firstname lastname email]
 
   after_destroy :publish_destroy
-  # Only enforce uniqueness for active/pending rentals — allows re-request after denial or cancellation
+
+  # Only enforce uniqueness for active/pending/vacating rentals
   validates :number, presence: true, uniqueness: {
-    conditions: -> { where(:status.in => ["active", "pending"]) }
+    conditions: -> { where(:status.in => ["active", "pending", "vacating"]) }
   }
-  validates :status,  inclusion: { in: STATUSES }
+  validates :status, inclusion: { in: STATUSES }
 
   def rental_spot
     return nil if rental_spot_id.blank?

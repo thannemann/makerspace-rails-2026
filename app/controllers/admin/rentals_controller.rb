@@ -63,7 +63,7 @@ class Admin::RentalsController < AdminController
       enque_message(member_message, slack_user.slack_id)
     end
 
-    RentalMailer.rental_request_approved(member, @rental).deliver_later
+    RentalMailer.rental_request_approved(member.id.to_s, @rental.id.to_s).deliver_later
 
     render json: @rental, serializer: RentalSerializer, adapter: :attributes
   end
@@ -91,7 +91,7 @@ class Admin::RentalsController < AdminController
       enque_message(member_message, slack_user.slack_id)
     end
 
-    RentalMailer.rental_request_denied(member, @rental, reason).deliver_later
+    RentalMailer.rental_request_denied(member.id.to_s, @rental.id.to_s, reason).deliver_later
 
     render json: @rental, serializer: RentalSerializer, adapter: :attributes
   end
