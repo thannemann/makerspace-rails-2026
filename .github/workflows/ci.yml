@@ -5,7 +5,7 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
-
+  workflow_dispatch:
 jobs:
   # ── 1. Build the React/TS UI ────────────────────────────────────────────────
   build-ui:
