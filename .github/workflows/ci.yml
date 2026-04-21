@@ -20,6 +20,13 @@ jobs:
           node-version: "16"
           cache: "yarn"
           cache-dependency-path: ui/yarn.lock
+          
+      - name: Checkout react repo into ui subfolder
+        uses: actions/checkout@v4
+        with:
+            repository: thannemann/makerspace-react
+            ref: master
+            path: ui
 
       - name: Install UI dependencies
         working-directory: ui
