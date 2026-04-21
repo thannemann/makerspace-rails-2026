@@ -8,6 +8,7 @@ class Invoice
   OPERATION_RESOURCES = {
     "member" => Member,
     "rental" => Rental,
+    "household" => Group,
   }.freeze
   OPERATION_FUNCTIONS = ["renew="].freeze
 
@@ -182,7 +183,8 @@ class Invoice
   def resource_name
     options = {
       member: "fullname",
-      rental: "number"
+      rental: "number",
+      household: "group_display_name"
     }
     option = options[self.resource_class.to_sym]
     self.resource.try(option.to_sym)

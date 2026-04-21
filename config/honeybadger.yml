@@ -17,7 +17,7 @@ development_environments:
 
 # By default, Honeybadger won't report errors in the development_environments.
 # You can override this by explicitly setting report_data to true or false.
-# report_data: true
+report_data: true
 
 # The current Git revision of your project. Defaults to the last commit hash.
 # revision: null

@@ -2,4 +2,5 @@ build:
   docker:
     web: Dockerfile
   config:
-    ENVIRONMENT: production
+    REACT_REPO_URL: https://github.com/thannemann/makerspace-react.git
+    REACT_BRANCH: master

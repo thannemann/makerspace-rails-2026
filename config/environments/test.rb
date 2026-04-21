@@ -6,9 +6,13 @@ Rails.application.configure do
   # your test database is "scratch space" for the test suite and is wiped
   # and recreated between test runs. Don't rely on the data there!
   config.cache_classes = true
+  config.hosts << "www.example.com"
+  config.hosts << "localhost"
+  config.hosts << "127.0.0.1"
   config.hosts << "members.manchestermakerspace.com"
   config.hosts << "members.manchestermakerspace.org"
   config.hosts << "makerspace-dev-51ba804d4c30.herokuapp.com"
+  config.hosts << "rails"
   # Do not eager load code on boot. This avoids loading your whole application
   # just for the purpose of running a single test. If you are using a tool that
   # preloads Rails for running tests, you may have to set it to true.

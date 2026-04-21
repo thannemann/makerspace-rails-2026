@@ -1,11 +1,11 @@
 class Admin::MembersController < AdminController
-  before_action :set_member, only: [:update]
+  before_action :set_member, only: [:update, :update_password, :send_password_reset]
 
   def create
     @member = Member.new(get_camel_case_params(create_member_params()))
     @member.save!
     @member.reload
-    send_set_password_email
+    send_welcome_email
     render json: @member, adapter: :attributes and return
   end
 
@@ -15,6 +15,26 @@ class Admin::MembersController < AdminController
     notify_renewal(date)
     @member.reload
     render json: @member, adapter: :attributes and return
+  end
+
+  # POST /api/admin/members/:id/update_password
+  # Admin directly sets a new password for any member, then emails a notification.
+  def update_password
+    password = password_params[:password]
+    raise ::Error::UnprocessableEntity.new("Password cannot be blank") if password.blank?
+    raise ::Error::UnprocessableEntity.new("Password is too short (minimum 8 characters)") if password.length < 8
+
+    @member.password = password
+    @member.save!
+    MemberMailer.password_changed(@member.id.to_s).deliver_later
+    render json: {}, status: 204 and return
+  end
+
+  # POST /api/admin/members/:id/send_password_reset
+  # Admin triggers a Devise reset-link email (member sets their own password via link).
+  def send_password_reset
+    send_set_password_email
+    render json: {}, status: 204 and return
   end
 
   private
@@ -27,6 +47,11 @@ class Admin::MembersController < AdminController
   def update_member_params
     params.permit(:firstname, :lastname, :role, :email, :status, :expiration_time, :renew, :member_contract_on_file, :notes,
       :silence_emails, :phone, :subscription, address: [:street, :unit, :city, :state, :postal_code])
+  end
+
+  def password_params
+    params.require(:password)
+    params.permit(:password)
   end
 
   def get_camel_case_params(member_params)
@@ -56,11 +81,15 @@ class Admin::MembersController < AdminController
     end
   end
 
-  def send_set_password_email
+  def send_welcome_email
     raw_token, hashed_token = ::Devise.token_generator.generate(Member, :reset_password_token)
     @member.reset_password_token = hashed_token
     @member.reset_password_sent_at = Time.now.utc
     @member.save!
     MemberMailer.welcome_email_manual_register(@member.email, raw_token).deliver_now
+  end
+
+  def send_set_password_email
+    @member.send_reset_password_instructions
   end
 end

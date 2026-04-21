@@ -27,14 +27,27 @@ Rails.application.routes.draw do
     end
 
     authenticate :member do
+      put "/members/change_password", to: "members/passwords#update"
       resources :members, only: [:show, :index, :update] do
         scope module: :members do
           resources :permissions, only: [:index]
         end
       end
-      resources :rentals, only: [:show, :index, :update]
-      resources :invoices, only: [:index, :create]
 
+      # Rentals — member self-service
+      resources :rentals, only: [:show, :index, :update, :create] do
+        member do
+          delete :cancel
+        end
+      end
+
+      # Rental spots — member browse
+      resources :rental_spots, only: [:index, :show]
+
+      # Rental types — member dropdown
+      resources :rental_types, only: [:index]
+
+      resources :invoices, only: [:index, :create]
       resources :documents, only: [:show], defaults: { format: :html }
 
       namespace :billing do
@@ -50,12 +63,40 @@ Rails.application.routes.draw do
         end
       end
 
-      namespace :admin  do
+      namespace :admin do
         resources :cards, only: [:new, :create, :index, :update]
         resources :invoices, only: [:index, :create, :update, :destroy]
         resources :invoice_options, only: [:create, :update, :destroy]
-        resources :rentals, only: [:create, :update, :destroy, :index]
-        resources :members, only: [:create, :update]
+
+        # Rentals — admin manage + approve/deny
+        resources :rentals, only: [:create, :update, :destroy, :index] do
+          member do
+            post :approve
+            post :deny
+          end
+        end
+
+        # Rental spots catalog — admin CRUD
+        resources :rental_spots, only: [:index, :create, :update, :destroy]
+
+        # Rental types — admin CRUD
+        resources :rental_types, only: [:index, :create, :update, :destroy]
+
+        resources :members, only: [:create, :update] do
+          member do
+            post :update_password
+            post :send_password_reset
+          end
+        end
+        resources :groups, only: [:index, :show, :create, :destroy] do
+          member do
+            post :add_member
+            delete :remove_member
+          end
+          collection do
+            get :for_member
+          end
+        end
         resources :permissions, only: [:index, :update]
         resources :analytics, only: [:index]
 

@@ -27,6 +27,7 @@
         "type": "string",
         "enum": [
           "admin",
+          "resource_manager",
           "member"
         ]
       },
@@ -1339,13 +1340,11 @@
         "responses": {
           "200": {
             "description": "Receipt found",
-            "content": {
-            }
+            "content": {}
           },
           "302": {
             "description": "User not authenticated",
-            "content": {
-            }
+            "content": {}
           },
           "404": {
             "description": "Transaction not found",
@@ -1518,8 +1517,7 @@
         "responses": {
           "204": {
             "description": "refund requested",
-            "content": {
-            }
+            "content": {}
           },
           "401": {
             "description": "User not authenticated",
@@ -1764,8 +1762,7 @@
         "responses": {
           "204": {
             "description": "refund requested",
-            "content": {
-            }
+            "content": {}
           },
           "403": {
             "description": "User not authorized",
@@ -1948,9 +1945,7 @@
           "Cards"
         ],
         "operationId": "adminCreateCard",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -2358,9 +2353,7 @@
           "EarnedMemberships"
         ],
         "operationId": "adminCreateEarnedMembership",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -2599,9 +2592,7 @@
           "InvoiceOptions"
         ],
         "operationId": "adminCreateInvoiceOption",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -2772,8 +2763,7 @@
         "responses": {
           "204": {
             "description": "invoice option deleted",
-            "content": {
-            }
+            "content": {}
           },
           "403": {
             "description": "User unauthorized",
@@ -3000,9 +2990,7 @@
           "Invoices"
         ],
         "operationId": "adminCreateInvoices",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -3227,8 +3215,7 @@
         "responses": {
           "204": {
             "description": "invoice deleted",
-            "content": {
-            }
+            "content": {}
           },
           "403": {
             "description": "User unauthorized",
@@ -3285,9 +3272,7 @@
           "Members"
         ],
         "operationId": "adminCreateMember",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -3549,9 +3534,7 @@
           "Rentals"
         ],
         "operationId": "adminCreateRental",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -3722,8 +3705,7 @@
         "responses": {
           "204": {
             "description": "rental deleted",
-            "content": {
-            }
+            "content": {}
           },
           "403": {
             "description": "User unauthorized",
@@ -3973,9 +3955,7 @@
           "PaymentMethods"
         ],
         "operationId": "createPaymentMethod",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -4131,8 +4111,7 @@
         "responses": {
           "204": {
             "description": "Payment method deleted",
-            "content": {
-            }
+            "content": {}
           },
           "401": {
             "description": "User not authenticated",
@@ -4256,13 +4235,11 @@
         "responses": {
           "200": {
             "description": "Receipt found",
-            "content": {
-            }
+            "content": {}
           },
           "302": {
             "description": "User not authenticated",
-            "content": {
-            }
+            "content": {}
           },
           "403": {
             "description": "User not authorized",
@@ -4494,8 +4471,7 @@
         "responses": {
           "204": {
             "description": "refund requested",
-            "content": {
-            }
+            "content": {}
           },
           "401": {
             "description": "User not authenticated",
@@ -4668,9 +4644,7 @@
           "Transactions"
         ],
         "operationId": "createTransaction",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -4798,8 +4772,7 @@
         "responses": {
           "204": {
             "description": "refund requested",
-            "content": {
-            }
+            "content": {}
           },
           "403": {
             "description": "User not authorized",
@@ -4856,9 +4829,7 @@
           "ClientErrorHandler"
         ],
         "operationId": "message",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -4881,8 +4852,7 @@
         "responses": {
           "204": {
             "description": "Message sent",
-            "content": {
-            }
+            "content": {}
           }
         }
       }
@@ -4923,13 +4893,11 @@
         "responses": {
           "200": {
             "description": "Document found",
-            "content": {
-            }
+            "content": {}
           },
           "302": {
             "description": "User not authenticated",
-            "content": {
-            }
+            "content": {}
           },
           "404": {
             "description": "Document not found",
@@ -5465,9 +5433,7 @@
           "Invoices"
         ],
         "operationId": "createInvoice",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -5729,9 +5695,7 @@
           "Authentication"
         ],
         "operationId": "registerMember",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -6025,9 +5989,7 @@
           "Authentication"
         ],
         "operationId": "signIn",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -6096,8 +6058,7 @@
         "responses": {
           "204": {
             "description": "User signed out",
-            "content": {
-            }
+            "content": {}
           }
         }
       }
@@ -6109,9 +6070,7 @@
           "Password"
         ],
         "operationId": "requestPasswordReset",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -6136,8 +6095,7 @@
         "responses": {
           "201": {
             "description": "Instructions sent",
-            "content": {
-            }
+            "content": {}
           },
           "422": {
             "description": "Email not found",
@@ -6162,9 +6120,7 @@
           "Password"
         ],
         "operationId": "resetPassword",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -6192,8 +6148,7 @@
         "responses": {
           "204": {
             "description": "Password reset",
-            "content": {
-            }
+            "content": {}
           },
           "422": {
             "description": "Invalid token",
@@ -6220,9 +6175,7 @@
           "Authentication"
         ],
         "operationId": "sendRegistrationEmail",
-        "parameters": [
-
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -6245,8 +6198,7 @@
         "responses": {
           "204": {
             "description": "Registration email sent",
-            "content": {
-            }
+            "content": {}
           },
           "409": {
             "description": "Email already exists",

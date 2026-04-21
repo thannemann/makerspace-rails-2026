@@ -707,7 +707,7 @@ RSpec.configure do |config|
           },
           MemberRole: {
             type: :string,
-            enum: ["admin", "member"],
+            enum: ["admin", "resource_manager", "member"],
           },
           PayPalAccountSummary: {
             type: :object,

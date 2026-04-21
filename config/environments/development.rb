@@ -55,19 +55,28 @@ Rails.application.configure do
   # config.action_controller.asset_host = "#{config.action_mailer.default_url_options[:host]}:#{config.action_mailer.default_url_options[:port]}"
   config.action_mailer.asset_host = config.action_controller.asset_host
 
-  if ENV['MAILTRAP_API_TOKEN']
-    config.action_mailer.perform_deliveries = true
-    response = RestClient::Resource.new("https://mailtrap.io/api/v1/inboxes.json?api_token=#{ENV['MAILTRAP_API_TOKEN']}").get
-    inbox = JSON.parse(response)[0]
-    config.action_mailer.delivery_method = :smtp
-    config.action_mailer.smtp_settings = {
-      :user_name => inbox['username'],
-      :password => inbox['password'],
-      :address => inbox['domain'],
-      :domain => inbox['domain'],
-      :port => 2525,
-      :authentication => :plain
-    }
+  if ENV['MAILTRAP_API_TOKEN'] && ENV['MAILTRAP_ACCOUNT_ID']
+    begin
+      config.action_mailer.perform_deliveries = true
+      response = RestClient.get(
+        "https://mailtrap.io/api/accounts/#{ENV['MAILTRAP_ACCOUNT_ID']}/inboxes",
+        { Authorization: "Bearer #{ENV['MAILTRAP_API_TOKEN']}" }
+      )
+      parsed = JSON.parse(response)
+      inbox = parsed.is_a?(Array) ? parsed[0] : parsed["inboxes"][0]
+      config.action_mailer.delivery_method = :smtp
+      config.action_mailer.smtp_settings = {
+        :user_name => inbox['username'],
+        :password => inbox['password'],
+        :address => inbox['domain'],
+        :domain => inbox['domain'],
+        :port => 2525,
+        :authentication => :plain
+      }
+    rescue RestClient::Exception, StandardError => e
+      $stderr.puts "Mailtrap setup failed: #{e.message} — email delivery disabled"
+      config.action_mailer.perform_deliveries = false
+    end
   end
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

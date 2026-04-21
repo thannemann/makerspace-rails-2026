@@ -24,8 +24,8 @@ class Member
   field :status,                         default: "activeMember" # activeMember, nonMember, revoked, inactive
   field :expirationTime,  type: Integer  #pre-calcualted time of expiration
   field :startDate, default: Time.now
-  field :groupName #potentially member is in a group/partner membership
-  field :role,                          default: "member" #admin,officer,member
+  field :groupName, type: String #potentially member is in a group/partner membership
+  field :role,                          default: "member" #admin,resource_manager,member
   field :member_contract_signed_date, type: Date
   field :subscription,    type: Boolean,   default: false
   ## Database authenticatable
@@ -51,11 +51,11 @@ class Member
   validates :email, uniqueness: true
   validates :cardID, uniqueness: true, allow_nil: true
   validates_inclusion_of :status, in: ["activeMember", "nonMember", "revoked", "inactive"]
-  validates_inclusion_of :role, in: ["admin", "member"]
+  validates_inclusion_of :role, in: ["admin", "resource_manager", "member"]
 
   after_initialize :verify_group_expiry
   after_create :apply_default_permissions, :publish_create
-  after_update :update_card, :publish_update
+  after_update :update_card, :publish_update, :check_household_exit, :sync_expiration_to_group
   after_destroy :publish_destroy
 
   has_many :permissions, class_name: 'Permission', dependent: :destroy, :autosave => true
@@ -63,23 +63,32 @@ class Member
   has_many :invoices, class_name: "Invoice"
   has_many :access_cards, class_name: "Card", inverse_of: :member
   belongs_to :group, class_name: "Group", inverse_of: :active_members, optional: true, primary_key: 'groupName', foreign_key: "groupName"
-  has_one :group, class_name: "Group", inverse_of: :member
+
+  def household_role
+    return nil unless groupName.present?
+    return :primary if self.id.to_s == groupName.to_s
+    :secondary
+  end
+
   has_one :earned_membership, class_name: 'EarnedMembership', dependent: :destroy
 
-  # Searches by firstname if cant find anything else
+  # Searches members using Atlas $search if available, falls back to case-insensitive
+  # regex queries for local/CI environments where Atlas Search is not supported.
+  # Regex.escape prevents special characters from breaking the query.
   def self.search(searchTerms, criteria = Mongoid::Criteria.new(Member))
-    # Check if email format, then search email first
-    # Otherwise, build lastname, firstname, email
+    regex = /#{::Regexp.escape(searchTerms)}/i
+
     if !!(searchTerms =~ URI::MailTo::EMAIL_REGEXP)
-      pipeline = [ 
-        { 
-          :$search => { 
+      # Email search
+      pipeline = [
+        {
+          :$search => {
             index: "Searcher",
-            text: { 
-              query: searchTerms, 
-              path: "email" 
-            } 
-          } 
+            text: {
+              query: searchTerms,
+              path: "email"
+            }
+          }
         },
         {
           :$sort => {
@@ -94,33 +103,29 @@ class Member
       ]
       begin
         results = Member.collection.aggregate(pipeline)
+        result_ids = results.collect { |r| r[:_id] }
+        if result_ids.empty?
+          # Atlas Search returned nothing — fall back to regex contains match
+          return Member.any_of({ email: regex })
+        end
+        members = Member.where(id: { :$in => result_ids })
+        return members.sort_by { |m| result_ids.to_a.index m.id }
       rescue Mongo::Error::OperationFailure
-        pipeline[0] = { 
-          :$search => { 
-            text: { 
-              query: searchTerms, 
-              path: "email" 
-            } 
-          } 
-        }
-        pipeline[1] = {
-          :$sort => {
-            _id: -1
-          }
-        }
-        results = Member.collection.aggregate(pipeline)
+        # Atlas Search not available (local/CI) — fall back to regex contains match
+        return Member.any_of({ email: regex })
       end
     else
-      pipeline = [ 
-        { 
-          :$search => { 
+      # Name/general search
+      pipeline = [
+        {
+          :$search => {
             index: "Searcher",
-            text: { 
-              query: searchTerms, 
+            text: {
+              query: searchTerms,
               path: ["lastname", "firstname", "email"],
               fuzzy: {} # Empty object enables fuzzy searching
-            } 
-          }, 
+            }
+          },
         },
         {
           :$sort => {
@@ -135,29 +140,26 @@ class Member
       ]
       begin
         results = Member.collection.aggregate(pipeline)
+        result_ids = results.collect { |r| r[:_id] }
+        if result_ids.empty?
+          # Atlas Search returned nothing — fall back to regex contains match
+          return Member.any_of(
+            { lastname: regex },
+            { firstname: regex },
+            { email: regex }
+          )
+        end
+        members = Member.where(id: { :$in => result_ids })
+        return members.sort_by { |m| result_ids.to_a.index m.id }
       rescue Mongo::Error::OperationFailure
-        pipeline[0] = { 
-          :$search => { 
-            text: { 
-              query: searchTerms, 
-              path: ["lastname", "firstname", "email"],
-              fuzzy: {} # Empty object enables fuzzy searching
-            } 
-          } 
-        }
-        pipeline[1] = {
-          :$sort => {
-            _id: -1
-          }
-        }
-        results = Member.collection.aggregate(pipeline)
+        # Atlas Search not available (local/CI) — fall back to regex contains match
+        return Member.any_of(
+          { lastname: regex },
+          { firstname: regex },
+          { email: regex }
+        )
       end
     end
-    # collection.aggregate returns base BSON::Documents. Need to map to their class for downstream handlers
-    # Fetching exact members or saving will not work
-    result_ids = results.collect { |r| r[:_id] }
-    members = Member.where(id: { :$in => result_ids })
-    members.sort_by{ |m| result_ids.to_a.index m.id}
   end
 
   def fullname
@@ -166,6 +168,8 @@ class Member
 
   def verify_group_expiry
     if self.group
+      # Primary member drives the group expiry — don't overwrite their expiration
+      return if household_role == :primary
       #make sure member benefits from group expTime
       if benefits_from_group
         self.expirationTime = self.group.expiry
@@ -260,6 +264,25 @@ class Member
     self.access_cards.each do |c|
       c.update(expiry: self.expirationTime)
     end
+  end
+
+  def check_household_exit
+    # If a secondary household member just got their own subscription, remove them from the household
+    return unless subscription_id_changed? && subscription_id.present?
+    return unless household_role == :secondary
+
+    group = self.group
+    return unless group
+
+    group.remove_subordinate(self)
+  end
+
+  def sync_expiration_to_group
+    return unless expirationTime_changed?
+    return unless household_role == :primary
+    group = self.group
+    return unless group
+    group.update_expiration(self.expirationTime)
   end
 
   def benefits_from_group

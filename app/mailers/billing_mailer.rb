@@ -17,6 +17,13 @@ class BillingMailer < ApplicationMailer
     @subscription = subscription
     @payment_method = payment_method
     @invoice = invoice
+    @google_doc_content = ::Service::EmailTemplate.render(:new_subscription, {
+      member_name: member.fullname,
+      friendly_type: invoice.resource_class == "member" ? "membership" : "rental",
+      quantity: invoice.quantity.to_s,
+      next_billing_date: Date.parse(subscription.billing_period_end_date.to_s).strftime("%m/%d/%Y"),
+      url: get_profile_url_string(member)
+    })
     send_mail(member.email, "Subscription to Manchester Makerspace", __method__.to_s)
   end
 
@@ -79,6 +86,11 @@ class BillingMailer < ApplicationMailer
   def _canceled_subscription(member, invoice_resource_class)
     @member = member
     @type = invoice_resource_class
+    @google_doc_content = ::Service::EmailTemplate.render(:canceled_subscription, {
+      member_name: member.fullname,
+      friendly_type: invoice_resource_class == "member" ? "membership" : "rental",
+      url: get_profile_url_string(member)
+    })
     send_mail(member.email, "Canceled Manchester Makerspace Subscription", __method__.to_s)
   end
 
@@ -92,6 +104,12 @@ class BillingMailer < ApplicationMailer
     @error_status = error_status
     @member = member
     @invoice = invoice
+    @google_doc_content = ::Service::EmailTemplate.render(:failed_payment, {
+      member_name: member.fullname,
+      friendly_type: invoice.resource_class == "member" ? "membership" : "rental",
+      error_status: error_status.to_s,
+      url: get_profile_url_string(member)
+    })
     send_mail(member.email, "Failed payment to Manchester Makerspace", __method__.to_s)
   end
 
@@ -146,14 +164,23 @@ class BillingMailer < ApplicationMailer
   private
   def send_mail(email, subject, calling_method)
     get_profile_url()
-    mail to: email, subject: subject, template_name: calling_method.delete_prefix("_")
+    template_name = calling_method.delete_prefix("_")
+    if @google_doc_content
+      mail to: email, subject: subject, template_path: "shared", template_name: "google_doc_email"
+    else
+      mail to: email, subject: subject, template_name: template_name
+    end
   end
 
   def get_profile_url()
-    unless @member.nil? 
-      @url = url_for(action: :application, controller: :application)
-      @url += "members/#{@member.id}"
+    unless @member.nil?
+      @url = get_profile_url_string(@member)
     end
+  end
+
+  def get_profile_url_string(member)
+    base = url_for(action: :application, controller: :application)
+    "#{base}members/#{member.id}"
   end
 
   def get_details_from_transaction(transaction)

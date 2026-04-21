@@ -52,3 +52,4 @@ node_modules
 
 # Reporter file for integration  tests and screenshots
 /spec/rspec_results.html
+*.zip
