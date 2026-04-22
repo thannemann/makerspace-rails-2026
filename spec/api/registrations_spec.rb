@@ -113,12 +113,12 @@ describe 'Registrations API', type: :request do
       }, required: true
 
 response '204', 'Password reset' do
-  before {
+  let(:raw_token) {
     raw_token, hashed_token = Devise.token_generator.generate(Member, :reset_password_token)
-    auth_member
     auth_member.reset_password_token = hashed_token
     auth_member.reset_password_sent_at = Time.now.utc
     auth_member.save!
+    raw_token
   }
   let(:passwordResetDetails) {{ member: { resetPasswordToken: raw_token, password: "password" } }}
   run_test!
