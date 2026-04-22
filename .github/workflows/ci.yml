@@ -37,7 +37,7 @@ jobs:
         run: yarn build
 
       - name: Copy UI build to Rails assets
-        run: cp -r ui/build/* app/assets/builds/
+        run: cp -r ui/dist/* app/assets/builds/
         continue-on-error: true
         
       - name: Upload compiled assets
