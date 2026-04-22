@@ -36,11 +36,16 @@ jobs:
         working-directory: ui
         run: yarn build
 
+      - name: Copy UI build to Rails assets
+        run: cp -r ui/build/* app/assets/builds/
+        continue-on-error: true
+        
       - name: Upload compiled assets
         uses: actions/upload-artifact@v4
         with:
           name: ui-build
-          path: app/assets/builds/
+          #path: app/assets/builds/
+          path: ui/dist
           retention-days: 1
 
   # ── 2. React unit tests (Jest) ──────────────────────────────────────────────
