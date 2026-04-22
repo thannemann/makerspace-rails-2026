@@ -49,7 +49,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+          
+      - name: Checkout react repo into ui subfolder
+        uses: actions/checkout@v4
+        with:
+            repository: thannemann/makerspace-react
+            ref: master
+            path: ui
+            
       - name: Set up Node 16
         uses: actions/setup-node@v4
         with:
