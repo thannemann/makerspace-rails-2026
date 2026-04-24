@@ -66,7 +66,7 @@ jobs:
             "
       - run:
           name: Clear React cache
-          command: rm -rf tmp/makerspace-react
+          command: rm -rf tmp/makerspace-react && echo "React cache cleared, will clone fresh on next step"
       - run:
           name: E2E
           command: bundle exec rake integration
