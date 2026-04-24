@@ -35,7 +35,7 @@ task :integration do
   FileUtils.cp(File.join(react_repo_dir, "dist/makerspace-react.js"), File.join(rails_repo_dir, "app/assets/builds"))
   FileUtils.cp(File.join(react_repo_dir, "dist/makerspace-react.css"), File.join(rails_repo_dir, "app/assets/builds"))
   Dir.chdir(rails_repo_dir)
-  server_started = system("RAILS_ENV=test rake 'db:db_reset[subscriptions,payment_methods]' && RAILS_ENV=test rails s -b 0.0.0.0 -p 3035 -d")
+  server_started = system("RAILS_ENV=test rake 'db:db_reset[subscriptions,payment_methods]' && RAILS_ENV=test rails runner db/seeds_rental_spots.rb && RAILS_ENV=test rails s -b 0.0.0.0 -p 3035 -d")
   if server_started
     Dir.chdir(react_repo_dir)
     tests_pass = system("PORT=3035 HEADLESS=true RAILS_DIR=#{rails_repo_dir} yarn e2e")
