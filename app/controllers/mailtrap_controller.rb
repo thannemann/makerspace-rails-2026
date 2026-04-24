@@ -53,7 +53,20 @@ class MailtrapController < ApplicationController
     attributes = event.deep_dup.deep_transform_keys(&:underscore)
     attributes["status"] = attributes["status"].presence || attributes["event"]
     attributes["occurred_at"] = parse_timestamp(attributes["timestamp"])
-    attributes
+    attributes["raw_payload"] = attributes.deep_dup
+    attributes.slice(
+      "email",
+      "status",
+      "occurred_at",
+      "event",
+      "event_id",
+      "message_id",
+      "response",
+      "sending_stream",
+      "sending_domain_name",
+      "timestamp",
+      "raw_payload"
+    )
   end
 
   def parse_timestamp(value)
