@@ -56,16 +56,20 @@ module Service
           )
         end
       rescue Slack::Web::Api::Errors::SlackError
-        if send_as_msg
-          client.chat_postMessage(
-            channel: safe_channel(channel),
-            text: message
-          )
-        else
-          client.chat_postMessage(
-            channel: safe_channel(channel),
-            blocks: message
-          )
+        begin
+          if send_as_msg
+            client.chat_postMessage(
+              channel: safe_channel(channel),
+              text: message
+            )
+          else
+            client.chat_postMessage(
+              channel: safe_channel(channel),
+              blocks: message
+            )
+          end
+        rescue Slack::Web::Api::Errors::SlackError => e
+          raise e
         end
       end
     end
