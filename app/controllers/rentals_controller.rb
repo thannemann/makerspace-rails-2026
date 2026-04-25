@@ -1,6 +1,6 @@
 class RentalsController < AuthenticationController
   include FastQuery::MongoidQuery
-  before_action :set_rental, only: [:show, :update, :cancel]
+  before_action :set_rental, only: [:show, :update, :cancel, :decline_agreement]
 
   def index
     @rentals = Rental.where(member_id: current_member.id)
@@ -14,7 +14,7 @@ class RentalsController < AuthenticationController
     render json: @rental, adapter: :attributes
   end
 
-  # POST /api/rentals — member requests or claims a rental spot
+  # POST /api/rentals — member claims a rental spot
   def create
     unless current_member.status == "activeMember"
       raise ::Error::Forbidden.new("Your membership is not active. Please renew before requesting a rental.")
@@ -30,7 +30,8 @@ class RentalsController < AuthenticationController
     raise ::Mongoid::Errors::DocumentNotFound.new(RentalSpot, { id: params[:rental_spot_id] }) if spot.nil?
     raise ::Error::UnprocessableEntity.new("This rental is not currently available.") unless spot.available?
 
-    status = spot.requires_approval? ? "pending" : "active"
+    # All rentals start as pending_agreement or pending (approval required)
+    status = spot.requires_approval? ? "pending" : "pending_agreement"
 
     @rental = Rental.new(
       number:         spot.number,
@@ -44,9 +45,8 @@ class RentalsController < AuthenticationController
 
     if spot.requires_approval?
       notify_admin_pending(@rental, spot)
-    else
-      create_invoice(@rental, spot)
     end
+    # No invoice generated yet — happens after agreement is signed
 
     render json: @rental, serializer: RentalSerializer, adapter: :attributes, status: 201
   end
@@ -54,25 +54,63 @@ class RentalsController < AuthenticationController
   # PUT /api/rentals/:id — member signs rental agreement
   def update
     raise ::Error::Forbidden.new unless @rental.member_id.to_s == current_member.id.to_s
+    raise ::Error::UnprocessableEntity.new("Rental agreement cannot be signed at this stage.") unless @rental.status == "pending_agreement"
 
     encoded_signature = update_params[:signature]&.split(",")&.[](1)
     if encoded_signature
       DocumentUploadJob.perform_later(encoded_signature, "rental_agreement", @rental.id.as_json)
-      @rental.update_attributes!(contract_signed_date: Date.today)
+      @rental.update_attributes!(
+        contract_signed_date: Date.today,
+        status: "active"
+      )
+
+      # Generate invoice NOW — after agreement is signed
+      spot = @rental.rental_spot
+      if spot&.invoice_option.present?
+        spot.invoice_option.build_invoice(current_member.id, Time.now, @rental.id.to_s)
+      end
+
+      member = current_member
+      profile_url = "#{Rails.configuration.action_mailer.default_url_options[:host]}/members/#{member.id}/invoices"
+
+      slack_user = SlackUser.find_by(member_id: member.id)
+      unless slack_user.nil?
+        enque_message("You've signed your rental agreement for *#{@rental.number}*! ⚠ Your rental is not valid until payment is received. Please pay your invoice here: #{profile_url}", slack_user.slack_id)
+      end
+
+      RentalMailer.rental_claimed(member.id.to_s, @rental.id.to_s).deliver_later
     end
 
     render json: @rental, adapter: :attributes
   end
 
+  # DELETE /api/rentals/:id/decline_agreement — member declines rental agreement
+  def decline_agreement
+    raise ::Error::Forbidden.new unless @rental.member_id.to_s == current_member.id.to_s
+    raise ::Error::UnprocessableEntity.new("Rental is not pending agreement.") unless @rental.status == "pending_agreement"
+
+    @rental.update_attributes!(
+      status: "agreement_denied",
+      notes: [@rental.notes, "Agreement declined by member on #{Date.today}"].compact.join(" | ")
+    )
+
+    member = current_member
+    slack_user = SlackUser.find_by(member_id: member.id)
+    unless slack_user.nil?
+      enque_message("Your rental claim for *#{@rental.number}* has been cancelled because the rental agreement was not signed.", slack_user.slack_id)
+    end
+    enque_message("❌ #{member.fullname} declined the rental agreement for *#{@rental.number}*. Rental voided.")
+
+    render json: @rental, serializer: RentalSerializer, adapter: :attributes
+  end
+
   # DELETE /api/rentals/:id/cancel
-  # params: vacated (boolean) — has the member physically vacated the space?
   def cancel
     raise ::Error::Forbidden.new unless @rental.member_id.to_s == current_member.id.to_s
-    raise ::Error::UnprocessableEntity.new("Rental is already cancelled.") if @rental.status == "cancelled"
+    raise ::Error::UnprocessableEntity.new("Rental is already cancelled.") if ["cancelled", "agreement_denied"].include?(@rental.status)
 
     vacated = params[:vacated].to_s == "true"
 
-    # Cancel Braintree subscription in both cases (stop future billing)
     if @rental.subscription_id.present?
       begin
         gateway = ::Service::BraintreeGateway.connect_gateway
@@ -83,17 +121,12 @@ class RentalsController < AuthenticationController
     end
 
     if vacated
-      # Member has vacated — cancel immediately
       active_invoice = Invoice.active_invoice_for_resource(@rental.id)
       active_invoice&.destroy
-
       @rental.update_attributes!(status: "cancelled")
-
-      notify_rental_ended(@rental, "Your rental of #{@rental.number} has ended. Thank you for being a member!")
+      notify_rental_ended(@rental, "Your rental of #{@rental.number} has ended.")
     else
-      # Member has NOT vacated — mark as vacating, runs till expiration
       @rental.update_attributes!(status: "vacating")
-
       expiry = @rental.expiration ? Time.at(@rental.expiration / 1000).strftime("%B %-d, %Y") : "the end of your current rental period"
       notify_rental_vacating(@rental, expiry)
     end
@@ -120,34 +153,17 @@ class RentalsController < AuthenticationController
 
     slack_user = SlackUser.find_by(member_id: member.id)
     unless slack_user.nil?
-      member_message = "Your rental request for *#{spot.number}* (#{spot.location}) has been received and is pending admin approval. You will be notified once it has been reviewed."
-      enque_message(member_message, slack_user.slack_id)
+      enque_message("Your rental request for *#{spot.number}* has been received and is pending admin approval.", slack_user.slack_id)
     end
 
     RentalMailer.rental_request_pending(member.id.to_s, rental.id.to_s, spot.id.to_s).deliver_later
-  end
-
-  def create_invoice(rental, spot)
-    invoice_option = spot.invoice_option
-    return if invoice_option.nil?
-    invoice_option.build_invoice(current_member.id, Time.now, rental.id.to_s)
-
-    member = current_member
-    profile_url = "#{Rails.configuration.action_mailer.default_url_options[:host]}/members/#{member.id}/invoices"
-
-    slack_user = SlackUser.find_by(member_id: member.id)
-    unless slack_user.nil?
-      enque_message("You've claimed *#{rental.number}*! ⚠ Your rental is not valid until payment is received. Please pay your invoice here: #{profile_url}", slack_user.slack_id)
-    end
-
-    RentalMailer.rental_claimed(member.id.to_s, rental.id.to_s).deliver_later
   end
 
   def notify_rental_ended(rental, message)
     member = rental.member
     slack_user = SlackUser.find_by(member_id: member.id)
     unless slack_user.nil?
-      enque_message("Your rental of *#{rental.number}* has ended. The space is now available for other members.", slack_user.slack_id)
+      enque_message("Your rental of *#{rental.number}* has ended.", slack_user.slack_id)
     end
     enque_message("🔴 #{member.fullname}'s rental of *#{rental.number}* has been cancelled.")
     RentalMailer.rental_ended(member.id.to_s, rental.id.to_s).deliver_later

@@ -38,6 +38,7 @@ Rails.application.routes.draw do
       resources :rentals, only: [:show, :index, :update, :create] do
         member do
           delete :cancel
+          delete :decline_agreement
         end
       end
 

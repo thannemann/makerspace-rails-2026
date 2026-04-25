@@ -42,25 +42,17 @@ class Admin::RentalsController < AdminController
   def approve
     raise ::Error::UnprocessableEntity.new("Rental is not pending approval.") unless @rental.status == "pending"
 
-    @rental.update_attributes!(status: "active")
-
-    spot = @rental.rental_spot
-    if spot&.invoice_option.present?
-      spot.invoice_option.build_invoice(@rental.member_id, Time.now, @rental.id.to_s)
-    end
+    # Move to pending_agreement — member must sign before going active
+    @rental.update_attributes!(status: "pending_agreement")
 
     member = @rental.member
+    profile_url = "#{Rails.configuration.action_mailer.default_url_options[:host]}/members/#{member.id}"
 
-    # Notify admin channel
-    admin_message = "✅ *#{member.fullname}*'s rental request for *#{@rental.number}* has been approved."
-    enque_message(admin_message)
+    enque_message("✅ *#{member.fullname}*'s rental request for *#{@rental.number}* has been approved — awaiting agreement signature.")
 
-    # DM the member directly if they have a Slack account
     slack_user = SlackUser.find_by(member_id: member.id)
     unless slack_user.nil?
-      profile_url = "#{Rails.configuration.action_mailer.default_url_options[:host]}/members/#{member.id}/dues"
-      member_message = "Your rental request for *#{@rental.number}* has been approved! ⚠ Your rental is not valid until payment is received. Please pay your invoice here: #{profile_url}"
-      enque_message(member_message, slack_user.slack_id)
+      enque_message("Your rental request for *#{@rental.number}* has been approved! Please sign your rental agreement to complete the process: #{profile_url}", slack_user.slack_id)
     end
 
     RentalMailer.rental_request_approved(member.id.to_s, @rental.id.to_s).deliver_later
@@ -79,16 +71,11 @@ class Admin::RentalsController < AdminController
     )
 
     member = @rental.member
+    enque_message("❌ *#{member.fullname}*'s rental request for *#{@rental.number}* has been denied.")
 
-    # Notify admin channel
-    admin_message = "❌ *#{member.fullname}*'s rental request for *#{@rental.number}* has been denied."
-    enque_message(admin_message)
-
-    # DM the member directly if they have a Slack account
     slack_user = SlackUser.find_by(member_id: member.id)
     unless slack_user.nil?
-      member_message = "Your rental request for *#{@rental.number}* was not approved at this time. Reason: #{reason}"
-      enque_message(member_message, slack_user.slack_id)
+      enque_message("Your rental request for *#{@rental.number}* was not approved. Reason: #{reason}", slack_user.slack_id)
     end
 
     RentalMailer.rental_request_denied(member.id.to_s, @rental.id.to_s, reason).deliver_later

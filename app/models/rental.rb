@@ -6,7 +6,7 @@ class Rental
   include ActiveModel::Serializers::JSON
   include Publishable
 
-  STATUSES = %w[pending active vacating cancelled denied].freeze
+  STATUSES = %w[pending pending_agreement active vacating cancelled denied agreement_denied].freeze
 
   belongs_to :member
 
@@ -23,9 +23,8 @@ class Rental
 
   after_destroy :publish_destroy
 
-  # Only enforce uniqueness for active/pending/vacating rentals
   validates :number, presence: true, uniqueness: {
-    conditions: -> { where(:status.in => ["active", "pending", "vacating"]) }
+    conditions: -> { where(:status.in => ["active", "pending", "pending_agreement", "vacating"]) }
   }
   validates :status, inclusion: { in: STATUSES }
 
