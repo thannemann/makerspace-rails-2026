@@ -1,6 +1,6 @@
 class RentalsController < AuthenticationController
   include FastQuery::MongoidQuery
-  before_action :set_rental, only: [:show, :update, :cancel, :decline_agreement]
+  before_action :set_rental, only: [:show, :update, :cancel, :decline_agreement, :mark_vacated]
 
   def index
     @rentals = Rental.where(member_id: current_member.id)
@@ -30,7 +30,6 @@ class RentalsController < AuthenticationController
     raise ::Mongoid::Errors::DocumentNotFound.new(RentalSpot, { id: params[:rental_spot_id] }) if spot.nil?
     raise ::Error::UnprocessableEntity.new("This rental is not currently available.") unless spot.available?
 
-    # All rentals start as pending_agreement or pending (approval required)
     status = spot.requires_approval? ? "pending" : "pending_agreement"
 
     @rental = Rental.new(
@@ -46,7 +45,6 @@ class RentalsController < AuthenticationController
     if spot.requires_approval?
       notify_admin_pending(@rental, spot)
     end
-    # No invoice generated yet — happens after agreement is signed
 
     render json: @rental, serializer: RentalSerializer, adapter: :attributes, status: 201
   end
@@ -64,8 +62,13 @@ class RentalsController < AuthenticationController
         status: "active"
       )
 
-      # Generate invoice NOW — after agreement is signed
+      # Generate invoice after agreement signed
+      # Use rental_spot_id if available, otherwise fall back to number-based lookup
       spot = @rental.rental_spot
+      if spot.nil? && @rental.number.present?
+        spot = RentalSpot.find_by(number: @rental.number)
+      end
+
       if spot&.invoice_option.present?
         spot.invoice_option.build_invoice(current_member.id, Time.now, @rental.id.to_s)
       end
@@ -124,12 +127,28 @@ class RentalsController < AuthenticationController
       active_invoice = Invoice.active_invoice_for_resource(@rental.id)
       active_invoice&.destroy
       @rental.update_attributes!(status: "cancelled")
-      notify_rental_ended(@rental, "Your rental of #{@rental.number} has ended.")
+      notify_rental_ended(@rental)
     else
       @rental.update_attributes!(status: "vacating")
       expiry = @rental.expiration ? Time.at(@rental.expiration / 1000).strftime("%B %-d, %Y") : "the end of your current rental period"
       notify_rental_vacating(@rental, expiry)
     end
+
+    render json: @rental, serializer: RentalSerializer, adapter: :attributes
+  end
+
+  # POST /api/rentals/:id/mark_vacated — member or admin marks a vacating rental as vacated
+  def mark_vacated
+    unless @rental.member_id.to_s == current_member.id.to_s || current_member.role == "admin" || current_member.role == "resource_manager"
+      raise ::Error::Forbidden.new
+    end
+    raise ::Error::UnprocessableEntity.new("Rental is not in vacating status.") unless @rental.status == "vacating"
+
+    active_invoice = Invoice.active_invoice_for_resource(@rental.id)
+    active_invoice&.destroy
+
+    @rental.update_attributes!(status: "cancelled")
+    notify_rental_ended(@rental)
 
     render json: @rental, serializer: RentalSerializer, adapter: :attributes
   end
@@ -148,22 +167,24 @@ class RentalsController < AuthenticationController
 
   def notify_admin_pending(rental, spot)
     member = current_member
-    admin_message = "🔔 New rental request from *#{member.fullname}* for *#{spot.number}* (#{spot.rental_type&.display_name} — #{spot.location}). Please review in the admin portal."
+    host = Rails.configuration.action_mailer.default_url_options[:host]
+    admin_rentals_url = "#{host}/admin/rentals"
+    admin_message = "🔔 New rental request from *#{member.fullname}* for *#{spot.number}* (#{spot.rental_type&.display_name} — #{spot.location}). <#{admin_rentals_url}|Review rental requests>"
     enque_message(admin_message)
 
     slack_user = SlackUser.find_by(member_id: member.id)
     unless slack_user.nil?
-      enque_message("Your rental request for *#{spot.number}* has been received and is pending admin approval.", slack_user.slack_id)
+      enque_message("Your rental request for *#{spot.number}* has been received and is pending admin approval. You will be notified once reviewed.", slack_user.slack_id)
     end
 
     RentalMailer.rental_request_pending(member.id.to_s, rental.id.to_s, spot.id.to_s).deliver_later
   end
 
-  def notify_rental_ended(rental, message)
+  def notify_rental_ended(rental)
     member = rental.member
     slack_user = SlackUser.find_by(member_id: member.id)
     unless slack_user.nil?
-      enque_message("Your rental of *#{rental.number}* has ended.", slack_user.slack_id)
+      enque_message("Your rental of *#{rental.number}* has ended. The space is now available for other members.", slack_user.slack_id)
     end
     enque_message("🔴 #{member.fullname}'s rental of *#{rental.number}* has been cancelled.")
     RentalMailer.rental_ended(member.id.to_s, rental.id.to_s).deliver_later

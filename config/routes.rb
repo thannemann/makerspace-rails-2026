@@ -39,6 +39,7 @@ Rails.application.routes.draw do
         member do
           delete :cancel
           delete :decline_agreement
+          post   :mark_vacated
         end
       end
 
