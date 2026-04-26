@@ -12,6 +12,11 @@ Rails.application.routes.draw do
     post '/braintree_listener', to: 'braintree#webhooks'
   end
 
+  # Slack inbound slash commands (outside :api scope — Slack posts form-encoded)
+  namespace :slack do
+    post '/commands/checkout', to: 'commands#checkout'
+  end
+
   scope :api, defaults: { format: :json } do
     devise_for :members, skip: [:registrations], controllers: { sessions: "sessions" }
     devise_scope :member do
@@ -20,6 +25,10 @@ Rails.application.routes.draw do
     end
     resources :invoice_options, only: [:index, :show]
     resources :client_error_handler, only: [:create]
+
+    # Public shop/tool listing
+    resources :shops, only: [:index]
+    resources :tools, only: [:index]
 
     namespace :billing do
       resources :plans, only: [:index]
@@ -33,6 +42,9 @@ Rails.application.routes.draw do
           resources :permissions, only: [:index]
         end
       end
+
+      # Member sees their own checkouts
+      resources :tool_checkouts, only: [:index]
 
       # Rentals — member self-service
       resources :rentals, only: [:show, :index, :update, :create] do
@@ -69,6 +81,12 @@ Rails.application.routes.draw do
         resources :cards, only: [:new, :create, :index, :update]
         resources :invoices, only: [:index, :create, :update, :destroy]
         resources :invoice_options, only: [:create, :update, :destroy]
+
+        # Tool checkout management
+        resources :shops, only: [:index, :create, :update, :destroy]
+        resources :tools, only: [:index, :create, :update, :destroy]
+        resources :tool_checkouts, only: [:index, :create, :destroy]
+        resources :checkout_approvers, only: [:index, :create, :update, :destroy]
 
         # Rentals — admin manage + approve/deny
         resources :rentals, only: [:create, :update, :destroy, :index] do
