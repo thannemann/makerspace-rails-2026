@@ -7,6 +7,7 @@ Rails.application.routes.draw do
 
   root to: "application#application"
   post '/ipnlistener', to: 'paypal#notify'
+  post '/mailtrap_listener', to: 'mailtrap#webhooks', defaults: { format: :json }
 
   namespace :billing do
     post '/braintree_listener', to: 'braintree#webhooks'

@@ -39,7 +39,7 @@ class Member
 
   field :customer_id, type: String # Braintree customer relation
   field :subscription_id, type: String # Braintree relation
-
+  field :mailtrap_id, type: BSON::ObjectId
   field :silence_emails, type: Boolean # Stop all slack and email notifications to user
   field :notes, type: String
 
@@ -166,6 +166,12 @@ class Member
     return "#{self.firstname} #{self.lastname}"
   end
 
+  def mailtrap_event
+    return nil if mailtrap_id.blank?
+    # We have an updated email result from Mailtrap
+    MailtrapEvent.where(id: mailtrap_id).first
+  end
+  
   def verify_group_expiry
     if self.group
       # Primary member drives the group expiry — don't overwrite their expiration
