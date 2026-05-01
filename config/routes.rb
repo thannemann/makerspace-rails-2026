@@ -121,6 +121,14 @@ Rails.application.routes.draw do
         resources :permissions, only: [:index, :update]
         resources :analytics, only: [:index]
 
+        # System settings
+        resources :system_configs, only: [:index] do
+          collection do
+            put  :update_flag
+            post :run_job
+          end
+        end
+
         namespace :billing do
           resources :subscriptions, only: [:index, :destroy]
           resources :transactions, only: [:show, :index, :destroy]
