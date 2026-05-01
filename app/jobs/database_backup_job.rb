@@ -2,6 +2,7 @@ class DatabaseBackupJob < ApplicationJob
   queue_as :default
 
   def perform
+    Rails.application.load_tasks
     begin
       Rake::Task["db:backup"].reenable
       Rake::Task["db:backup"].invoke

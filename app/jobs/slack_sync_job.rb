@@ -2,6 +2,7 @@ class SlackSyncJob < ApplicationJob
   queue_as :default
 
   def perform
+    Rails.application.load_tasks
     begin
       Rake::Task["slack:sync_users"].reenable
       Rake::Task["slack:sync_users"].invoke

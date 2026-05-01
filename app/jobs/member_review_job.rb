@@ -2,6 +2,7 @@ class MemberReviewJob < ApplicationJob
   queue_as :default
 
   def perform
+    Rails.application.load_tasks
     begin
       Rake::Task["member_review"].reenable
       Rake::Task["member_review"].invoke

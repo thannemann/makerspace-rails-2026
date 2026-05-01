@@ -2,6 +2,7 @@ class InvoiceReviewJob < ApplicationJob
   queue_as :default
 
   def perform
+    Rails.application.load_tasks
     begin
       Rake::Task["invoice_review"].reenable
       Rake::Task["invoice_review"].invoke

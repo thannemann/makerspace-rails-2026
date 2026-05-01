@@ -2,6 +2,7 @@ class GarbageCollectJob < ApplicationJob
   queue_as :default
 
   def perform
+    Rails.application.load_tasks
     begin
       Rake::Task["gc"].reenable
       Rake::Task["gc"].invoke
