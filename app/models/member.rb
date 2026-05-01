@@ -53,6 +53,7 @@ class Member
   validates_inclusion_of :status, in: ["activeMember", "nonMember", "revoked", "inactive"]
   validates_inclusion_of :role, in: ["admin", "resource_manager", "member"]
 
+  before_validation :normalize_email
   after_initialize :verify_group_expiry
   after_create :apply_default_permissions, :publish_create
   after_update :update_card, :publish_update, :check_household_exit, :sync_expiration_to_group
@@ -164,6 +165,10 @@ class Member
 
   def fullname
     return "#{self.firstname} #{self.lastname}"
+  end
+
+  def normalize_email
+    self.email = self.email.to_s.strip.downcase
   end
 
   def mailtrap_event
