@@ -1,11 +1,10 @@
 class DatabaseBackupJob < ApplicationJob
   queue_as :default
-
   def perform
     Rails.application.load_tasks
     begin
-      Rake::Task["db:backup"].reenable
-      Rake::Task["db:backup"].invoke
+      Rake::Task["backup"].reenable
+      Rake::Task["backup"].invoke
       SystemConfig.record_run("db_backup", success: true)
     rescue => e
       SystemConfig.record_run("db_backup", success: false)
