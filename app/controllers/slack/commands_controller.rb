@@ -40,6 +40,9 @@ class Slack::CommandsController < ApplicationController
     # Parse member slack ID upfront so it's available in all error contexts below
     member_slack_id = if slack_mention?(member_token)
       member_token.match(/<@([^|>]+)/i)&.captures&.first
+    elsif slack_username?(member_token)
+      username = member_token.sub(/\A@/, "")
+      SlackUser.where(name: /\A#{Regexp.escape(username)}\z/i).first&.slack_id
     end
 
     # Verify invoker is authorized
@@ -120,6 +123,19 @@ class Slack::CommandsController < ApplicationController
           response_type: "ephemeral",
           text: "No member found linked to that Slack account. Please resubmit with their email address instead:\n`/checkout member@email.com #{tool_name}`"
         } and return
+      elsif slack_username?(member_token)
+        Honeybadger.notify("Slack checkout failed: member not found by Slack username", context: {
+          reason:           "Plain @username not matched to any SlackUser name record",
+          command_text:     text,
+          invoker_slack_id: invoker_slack_id,
+          invoker_token:    params[:user_id],
+          member_token:     member_token,
+          member_slack_id:  member_slack_id
+        })
+        render json: {
+          response_type: "ephemeral",
+          text: "No member found with Slack username #{member_token}. Try using their email instead:\n`/checkout member@email.com #{tool_name}`"
+        } and return
       else
         Honeybadger.notify("Slack checkout failed: member not found by email", context: {
           reason:           "No Member record found with email matching member token",
@@ -198,12 +214,21 @@ class Slack::CommandsController < ApplicationController
     token.start_with?("<@")
   end
 
+  def slack_username?(token)
+    token.start_with?("@") && !token.start_with?("<@")
+  end
+
   def find_member_from_token(token)
     if slack_mention?(token)
       # Format: <@U12345678|username>
       slack_id = token.match(/<@([^|>]+)/i)&.captures&.first
       return nil unless slack_id
       slack_user = SlackUser.find_by(slack_id: slack_id)
+      slack_user ? Member.find(slack_user.member_id) : nil
+    elsif slack_username?(token)
+      # Format: @plaintext username — match against SlackUser name field
+      username = token.sub(/\A@/, "")
+      slack_user = SlackUser.where(name: /\A#{Regexp.escape(username)}\z/i).first
       slack_user ? Member.find(slack_user.member_id) : nil
     else
       # Email fallback
