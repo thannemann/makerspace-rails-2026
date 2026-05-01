@@ -73,10 +73,41 @@ Rails.application.configure do
         :port => 2525,
         :authentication => :plain
       }
+      $stderr.puts "[Mailer] Using Mailtrap for email delivery"
     rescue RestClient::Exception, StandardError => e
-      $stderr.puts "Mailtrap setup failed: #{e.message} — email delivery disabled"
-      config.action_mailer.perform_deliveries = false
+      $stderr.puts "[Mailer] Mailtrap setup failed: #{e.message} — falling back to next provider"
     end
+  elsif ENV['GMAIL_USERNAME']
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      authentication: :plain,
+      address:        'smtp.gmail.com',
+      port:           587,
+      domain:         ENV['APP_DOMAIN'] || 'localhost',
+      user_name:      ENV['GMAIL_USERNAME'],
+      password:       ENV['GMAIL_PASSWORD']
+    }
+    $stderr.puts "[Mailer] Using Gmail SMTP for email delivery"
+  elsif ENV['SMTP_USERNAME']
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      authentication: :plain,
+      address:        ENV['SMTP_ADDRESS'],
+      port:           587,
+      user_name:      ENV['SMTP_USERNAME'],
+      password:       ENV['SMTP_PASSWORD']
+    }
+    $stderr.puts "[Mailer] Using SMTP server #{ENV['SMTP_ADDRESS']} for email delivery"
+  else
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: 'localhost',
+      port:    25
+    }
+    $stderr.puts "[Mailer] WARNING: No mail provider configured — falling back to localhost:25"
   end
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
