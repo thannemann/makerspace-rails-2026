@@ -55,7 +55,7 @@ Rails.application.configure do
   # config.action_controller.asset_host = "#{config.action_mailer.default_url_options[:host]}:#{config.action_mailer.default_url_options[:port]}"
   config.action_mailer.asset_host = config.action_controller.asset_host
 
-  if ENV['MAILTRAP_API_TOKEN'] && ENV['MAILTRAP_ACCOUNT_ID']
+  if ENV['MAILTRAP_API_TOKEN'].present? && ENV['MAILTRAP_ACCOUNT_ID'].present?
     begin
       config.action_mailer.perform_deliveries = true
       response = RestClient.get(
@@ -77,7 +77,7 @@ Rails.application.configure do
     rescue RestClient::Exception, StandardError => e
       $stderr.puts "[Mailer] Mailtrap setup failed: #{e.message} — falling back to next provider"
     end
-  elsif ENV['GMAIL_USERNAME']
+  elsif ENV['GMAIL_USERNAME'].present?
     config.action_mailer.perform_deliveries = true
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
@@ -89,7 +89,7 @@ Rails.application.configure do
       password:       ENV['GMAIL_PASSWORD']
     }
     $stderr.puts "[Mailer] Using Gmail SMTP for email delivery"
-  elsif ENV['SMTP_USERNAME']
+  elsif ENV['SMTP_USERNAME'].present?
     config.action_mailer.perform_deliveries = true
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
