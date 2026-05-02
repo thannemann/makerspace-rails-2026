@@ -20,7 +20,6 @@ class SlackCheckoutJob < ApplicationJob
     end
 
     # Acquire Redis lock to prevent duplicate concurrent checkouts for same member+tool combo
-    # Lock is keyed on member token + tool name since we don't have IDs yet
     lock_key = "checkout_lock/#{member_token.downcase}/#{tool_name.downcase}"
     acquired = Redis.current.set(lock_key, 1, nx: true, ex: 30)
     unless acquired
@@ -29,8 +28,13 @@ class SlackCheckoutJob < ApplicationJob
     end
 
     begin
-      # Verify invoker is authorized
+      # Verify invoker is authorized — attempt sync_single once if not found
       invoker = find_invoker(invoker_slack_id)
+      if invoker.nil?
+        synced_member = Service::SlackUserSync.sync_single(invoker_slack_id)
+        invoker = find_invoker(invoker_slack_id) if synced_member
+      end
+
       unless invoker
         Honeybadger.notify('Slack checkout failed: unauthorized invoker', context: {
           reason:           'Invoker Slack ID not linked to an admin, resource_manager, or checkout approver',
@@ -92,7 +96,16 @@ class SlackCheckoutJob < ApplicationJob
       end
 
       # Find the member — Slack mention, username, or email
+      # Attempt sync_single once if not found via Slack mention or username
       member = find_member_from_token(member_token)
+      if member.nil? && (slack_mention?(member_token) || slack_username?(member_token))
+        synced_slack_id = member_slack_id
+        if synced_slack_id
+          Service::SlackUserSync.sync_single(synced_slack_id)
+          member = find_member_from_token(member_token)
+        end
+      end
+
       unless member
         if slack_mention?(member_token)
           Honeybadger.notify('Slack checkout failed: member not found by Slack ID', context: {
