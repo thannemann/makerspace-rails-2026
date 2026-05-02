@@ -134,10 +134,11 @@ Rails.application.routes.draw do
         resources :permissions, only: [:index, :update]
         resources :analytics, only: [:index]
 
-        # System settings
+        # Member Portal Settings
         resources :system_configs, only: [:index] do
           collection do
             put  :update_flag
+            put  :update_setting
             post :run_job
           end
         end
