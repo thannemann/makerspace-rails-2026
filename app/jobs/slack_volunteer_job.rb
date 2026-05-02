@@ -1,19 +1,20 @@
 # SlackVolunteerJob
 #
 # Handles inbound /volunteer Slack slash commands asynchronously.
-# All processing is deferred here to satisfy Slack's 3-second response window.
-#
-# Tasks are referenced by sequential task number (#N) not MongoDB IDs.
+# Tasks are referenced by sequential number (#N), events by (EN).
 #
 # Supported commands:
-#   /volunteer status [@member]              — check credit count
+#   /volunteer status [@member]
 #   /volunteer tasks                         — list available bounty tasks
-#   /volunteer claim <task#>                 — claim an available bounty task
+#   /volunteer claim <task#>                 — claim a bounty task
 #   /volunteer done <task#>                  — mark claimed task as pending verification
-#   /volunteer award @member <reason>        — admin/RM: award a one-off credit (always 1 credit)
+#   /volunteer events                        — list open volunteer events
+#   /volunteer checkin <E#>                  — check in to an open event
+#   /volunteer award @member <reason>        — admin/RM: award a one-off credit
 #   /volunteer verify <task#>                — admin/RM: verify a completed task
 #   /volunteer release <task#> <reason>      — admin/RM: release a stale claimed task
 #   /volunteer reject <task#> <reason>       — admin/RM: reject a pending task
+#   /volunteer close <E#>                    — admin/RM: close event and issue credits
 #
 class SlackVolunteerJob < ApplicationJob
   queue_as :default
@@ -26,7 +27,6 @@ class SlackVolunteerJob < ApplicationJob
     parts   = text.split(/\s+/)
     command = parts[0].to_s.downcase
 
-    # Find invoker — attempt sync_single once if not linked
     invoker = find_member_by_slack_id(invoker_slack_id)
     if invoker.nil?
       Service::SlackUserSync.sync_single(invoker_slack_id)
@@ -39,22 +39,17 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     case command
-    when 'status'
-      handle_status(response_url, invoker, parts[1])
-    when 'tasks'
-      handle_tasks(response_url)
-    when 'claim'
-      handle_claim(response_url, invoker, parts[1])
-    when 'done'
-      handle_done(response_url, invoker, parts[1])
-    when 'award'
-      handle_award(response_url, invoker, parts)
-    when 'verify'
-      handle_verify(response_url, invoker, parts[1])
-    when 'release'
-      handle_release(response_url, invoker, parts[1], parts[2..].join(' '))
-    when 'reject'
-      handle_reject(response_url, invoker, parts[1], parts[2..].join(' '))
+    when 'status'   then handle_status(response_url, invoker, parts[1])
+    when 'tasks'    then handle_tasks(response_url)
+    when 'claim'    then handle_claim(response_url, invoker, parts[1])
+    when 'done'     then handle_done(response_url, invoker, parts[1])
+    when 'events'   then handle_events(response_url)
+    when 'checkin'  then handle_checkin(response_url, invoker, parts[1])
+    when 'award'    then handle_award(response_url, invoker, parts)
+    when 'verify'   then handle_verify(response_url, invoker, parts[1])
+    when 'release'  then handle_release(response_url, invoker, parts[1], parts[2..].join(' '))
+    when 'reject'   then handle_reject(response_url, invoker, parts[1], parts[2..].join(' '))
+    when 'close'    then handle_close(response_url, invoker, parts[1])
     else
       post_response(response_url, :ephemeral, usage_text)
     end
@@ -90,9 +85,7 @@ class SlackVolunteerJob < ApplicationJob
       discounts_used = VolunteerCredit.discounts_applied_this_year_for(member.id)
       threshold      = VolunteerCredit.credits_per_discount
       max_discounts  = VolunteerCredit.max_discounts_per_year
-
       lines << "Discounts applied: *#{discounts_used}* / #{max_discounts}"
-
       if discounts_used >= max_discounts
         lines << '🏆 Maximum discounts reached for this year. Resets January 1st.'
       else
@@ -174,6 +167,44 @@ class SlackVolunteerJob < ApplicationJob
       "✅ Task *#{task.title}* marked as complete. An admin or RM will verify shortly.")
   end
 
+  def handle_events(response_url)
+    events = VolunteerEvent.open.order_by(event_number: :asc).limit(10)
+
+    if events.empty?
+      post_response(response_url, :ephemeral, '📅 No volunteer events are currently open.')
+      return
+    end
+
+    lines = ['📅 *Open Volunteer Events*']
+    events.each do |e|
+      credit_label = e.credit_value == 1.0 ? '1 credit' : "#{e.credit_value} credits"
+      date_str     = e.event_date ? " — #{e.event_date.strftime('%b %d')}" : ''
+      lines << "• *#{e.title}* (#{credit_label}#{date_str}) — `#{e.display_number}` — #{e.attendee_count} checked in\n  #{e.description}"
+    end
+    lines << "\nUse `/volunteer checkin <E#>` to check in. e.g. `/volunteer checkin E1`"
+
+    post_response(response_url, :ephemeral, lines.join("\n"))
+  end
+
+  def handle_checkin(response_url, invoker, event_ref)
+    unless event_ref.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer checkin <E#>` e.g. `/volunteer checkin E1`')
+      return
+    end
+
+    event = find_event_by_ref(event_ref)
+    unless event
+      post_response(response_url, :ephemeral, "❌ Event not found: #{event_ref}. Use `/volunteer events` to see open events.")
+      return
+    end
+
+    event.checkin!(invoker)
+    post_response(response_url, :ephemeral,
+      "✅ You're checked in to *#{event.title}* (#{event.display_number}). Credits will be issued when the event closes.")
+  rescue Error::Forbidden => e
+    post_response(response_url, :ephemeral, "❌ #{e.message}")
+  end
+
   def handle_award(response_url, invoker, parts)
     unless privileged?(invoker)
       post_response(response_url, :ephemeral, '❌ Only admins and resource managers can award credits.')
@@ -197,7 +228,6 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     description = parts[2..].join(' ')
-
     credit = VolunteerCredit.create!(
       member_id:    member.id,
       issued_by_id: invoker.id,
@@ -219,7 +249,7 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     unless task_ref.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer verify <task#>` e.g. `/volunteer verify 3`')
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer verify <task#>`')
       return
     end
 
@@ -253,7 +283,7 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     unless task_ref.present? && reason.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer release <task#> <reason>` e.g. `/volunteer release 3 No response from member`')
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer release <task#> <reason>`')
       return
     end
 
@@ -264,13 +294,13 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     unless task.status == 'claimed'
-      post_response(response_url, :ephemeral, "❌ Task *#{task.title}* is not currently claimed (status: #{task.status}).")
+      post_response(response_url, :ephemeral, "❌ Task *#{task.title}* is not currently claimed.")
       return
     end
 
     task.release!(invoker, reason)
     post_response(response_url, :in_channel,
-      "🔓 Task *#{task.title}* (#{task.display_number}) has been released back to available. Reason: #{reason}")
+      "🔓 Task *#{task.title}* (#{task.display_number}) has been released. Reason: #{reason}")
   rescue Error::Forbidden
     post_response(response_url, :ephemeral, '❌ You cannot release your own claimed task.')
   end
@@ -282,7 +312,7 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     unless task_ref.present? && reason.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer reject <task#> <reason>` e.g. `/volunteer reject 3 Work incomplete`')
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer reject <task#> <reason>`')
       return
     end
 
@@ -293,24 +323,63 @@ class SlackVolunteerJob < ApplicationJob
     end
 
     unless task.status == 'pending'
-      post_response(response_url, :ephemeral, "❌ Task *#{task.title}* is not pending verification (status: #{task.status}).")
+      post_response(response_url, :ephemeral, "❌ Task *#{task.title}* is not pending verification.")
       return
     end
 
     task.reject_pending!(invoker, reason)
     post_response(response_url, :in_channel,
-      "❌ Task *#{task.title}* (#{task.display_number}) completion was rejected. Reason: #{reason}. Task is available for reclaiming.")
+      "❌ Task *#{task.title}* (#{task.display_number}) rejected. Reason: #{reason}. Available for reclaiming.")
   rescue Error::Forbidden
     post_response(response_url, :ephemeral, '❌ You cannot reject your own task.')
   end
 
+  def handle_close(response_url, invoker, event_ref)
+    unless privileged?(invoker)
+      post_response(response_url, :ephemeral, '❌ Only admins and resource managers can close events.')
+      return
+    end
+
+    unless event_ref.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer close <E#>` e.g. `/volunteer close E1`')
+      return
+    end
+
+    event = find_event_by_ref(event_ref)
+    unless event
+      post_response(response_url, :ephemeral, "❌ Event not found: #{event_ref}.")
+      return
+    end
+
+    unless event.status == 'open'
+      post_response(response_url, :ephemeral, "❌ Event *#{event.title}* is already closed.")
+      return
+    end
+
+    attendee_count = event.attendee_count
+    event.close!(invoker)
+
+    post_response(response_url, :in_channel,
+      "🎉 *#{invoker.fullname}* closed event *#{event.title}* (#{event.display_number}). " \
+      "#{attendee_count} member#{'s' if attendee_count != 1} received #{event.credit_value} credit#{'s' if event.credit_value != 1.0}!")
+  rescue Error::Forbidden => e
+    post_response(response_url, :ephemeral, "❌ #{e.message}")
+  end
+
   # ── Helpers ──────────────────────────────────────────────────────────────
 
-  # Accept both "3" and "#3" as task references
   def find_task_by_ref(ref)
     number = ref.to_s.sub(/\A#/, '').to_i
     return nil if number == 0
     VolunteerTask.find_by_number(number)
+  rescue
+    nil
+  end
+
+  def find_event_by_ref(ref)
+    number = ref.to_s.upcase.sub(/\AE/, '').to_i
+    return nil if number == 0
+    VolunteerEvent.find_by_number(number)
   rescue
     nil
   end
@@ -320,12 +389,15 @@ class SlackVolunteerJob < ApplicationJob
       *Volunteer Commands:*
       `/volunteer status [@member]` — Check credit status
       `/volunteer tasks` — List available bounty tasks
-      `/volunteer claim <task#>` — Claim a bounty task e.g. `/volunteer claim 3`
-      `/volunteer done <task#>` — Mark your claimed task as complete
+      `/volunteer claim <task#>` — Claim a task e.g. `/volunteer claim 3`
+      `/volunteer done <task#>` — Mark your task complete
+      `/volunteer events` — List open volunteer events
+      `/volunteer checkin <E#>` — Check in to an event e.g. `/volunteer checkin E1`
       `/volunteer award @member <reason>` — _(admin/RM)_ Award a one-off credit
       `/volunteer verify <task#>` — _(admin/RM)_ Verify a completed task
-      `/volunteer release <task#> <reason>` — _(admin/RM)_ Release a stale claimed task
+      `/volunteer release <task#> <reason>` — _(admin/RM)_ Release a stale task
       `/volunteer reject <task#> <reason>` — _(admin/RM)_ Reject a pending task
+      `/volunteer close <E#>` — _(admin/RM)_ Close event and issue credits
     TEXT
   end
 

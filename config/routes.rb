@@ -85,11 +85,13 @@ Rails.application.routes.draw do
       end
 
       # Volunteer — member self-service
-      get  '/volunteer/credits',            to: 'volunteer#credits'
-      get  '/volunteer/summary',            to: 'volunteer#summary'
-      get  '/volunteer/tasks',              to: 'volunteer#tasks'
-      post '/volunteer/tasks/:id/claim',    to: 'volunteer#claim_task'
-      post '/volunteer/tasks/:id/complete', to: 'volunteer#complete_task'
+      get  '/volunteer/credits',              to: 'volunteer#credits'
+      get  '/volunteer/summary',              to: 'volunteer#summary'
+      get  '/volunteer/tasks',                to: 'volunteer#tasks'
+      get  '/volunteer/events',               to: 'volunteer#events'
+      post '/volunteer/tasks/:id/claim',      to: 'volunteer#claim_task'
+      post '/volunteer/tasks/:id/complete',   to: 'volunteer#complete_task'
+      post '/volunteer/events/:id/checkin',   to: 'volunteer#checkin_event'
 
       namespace :admin do
         resources :cards, only: [:new, :create, :index, :update]
@@ -170,6 +172,14 @@ Rails.application.routes.draw do
             post :cancel
             post :release
             post :reject_pending
+          end
+        end
+
+        # Volunteer events — admin/RM manage
+        resources :volunteer_events, only: [:index, :create, :show, :destroy] do
+          member do
+            post :close
+            post :add_attendee
           end
         end
       end

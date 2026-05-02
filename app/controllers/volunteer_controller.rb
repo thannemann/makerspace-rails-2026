@@ -57,8 +57,14 @@ class VolunteerController < AuthenticationController
 
   # GET /api/volunteer/tasks
   def tasks
-    tasks = VolunteerTask.active.order_by(created_at: :desc)
+    tasks = VolunteerTask.active.order_by(task_number: :asc)
     render json: tasks, each_serializer: VolunteerTaskSerializer, adapter: :attributes
+  end
+
+  # GET /api/volunteer/events
+  def events
+    events = VolunteerEvent.open.order_by(created_at: :desc)
+    render json: events, each_serializer: VolunteerEventSerializer, adapter: :attributes
   end
 
   # POST /api/volunteer/tasks/:id/claim
@@ -80,12 +86,31 @@ class VolunteerController < AuthenticationController
     task.mark_pending!(current_member)
 
     ::Service::SlackConnector.send_slack_message(
-      "✅ *#{current_member.fullname}* has completed task *#{task.title}* and is awaiting verification.\nTask ID: `#{task.id}`",
+      "✅ *#{current_member.fullname}* has completed task *#{task.title}* (#{task.display_number}) and is awaiting verification.",
       VolunteerCredit.pending_slack_channel
     )
 
     render json: task, serializer: VolunteerTaskSerializer, adapter: :attributes
   rescue Error::Forbidden
     render json: { error: 'You cannot mark this task as complete' }, status: :unprocessable_entity
+  end
+
+  # POST /api/volunteer/events/:id/checkin
+  def checkin_event
+    event = VolunteerEvent.find(params[:id])
+    raise ::Mongoid::Errors::DocumentNotFound.new(VolunteerEvent, { id: params[:id] }) if event.nil?
+
+    if event.status != 'open'
+      render json: { error: 'Event is not open for check-in' }, status: :unprocessable_entity and return
+    end
+
+    if event.attendee_ids.include?(current_member.id)
+      render json: { error: 'You are already checked in to this event' }, status: :unprocessable_entity and return
+    end
+
+    event.checkin!(current_member)
+    render json: event, serializer: VolunteerEventSerializer, adapter: :attributes
+  rescue Error::Forbidden
+    render json: { error: 'Unable to check in to this event' }, status: :unprocessable_entity
   end
 end
