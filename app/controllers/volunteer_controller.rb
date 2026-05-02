@@ -13,25 +13,34 @@ class VolunteerController < AuthenticationController
 
   # GET /api/volunteer/summary
   def summary
-    member_id      = current_member.id
-    is_earned      = EarnedMembership.where(member_id: member_id).exists?
-    year_count     = VolunteerCredit.year_count_for(member_id)
-    discounts_used = VolunteerCredit.discounts_applied_this_year_for(member_id)
-    threshold      = VolunteerCredit.credits_per_discount
-    max_discounts  = VolunteerCredit.max_discounts_per_year
-    pending_count  = VolunteerCredit.pending.where(member_id: member_id).count
+    member_id       = current_member.id
+    is_earned       = EarnedMembership.where(member_id: member_id).exists?
+    year_count      = VolunteerCredit.year_count_for(member_id)
+    pending_count   = VolunteerCredit.pending.where(member_id: member_id).count
+    discount_active = VolunteerCredit.discount_amount > 0.0
 
-    message = if is_earned
-      nil
-    elsif discounts_used >= max_discounts
-      "Maximum discounts reached for this year (#{max_discounts}). Resets January 1st."
-    else
-      credits_until_next = [(threshold * (discounts_used + 1)) - year_count, 0.0].max
-      if credits_until_next == 0.0
-        'Discount applied to your next billing cycle!'
+    if discount_active
+      discounts_used = VolunteerCredit.discounts_applied_this_year_for(member_id)
+      threshold      = VolunteerCredit.credits_per_discount
+      max_discounts  = VolunteerCredit.max_discounts_per_year
+
+      message = if is_earned
+        nil
+      elsif discounts_used >= max_discounts
+        "Maximum discounts reached for this year (#{max_discounts}). Resets January 1st."
       else
-        "#{credits_until_next} credit#{'s' if credits_until_next != 1.0} until your next discount."
+        credits_until_next = [(threshold * (discounts_used + 1)) - year_count, 0.0].max
+        if credits_until_next == 0.0
+          'Discount applied to your next billing cycle!'
+        else
+          "#{credits_until_next} credit#{'s' if credits_until_next != 1.0} until your next discount."
+        end
       end
+    else
+      discounts_used = nil
+      threshold      = nil
+      max_discounts  = nil
+      message        = nil
     end
 
     render json: {
@@ -41,6 +50,7 @@ class VolunteerController < AuthenticationController
       credits_per_discount: threshold,
       pending_count:        pending_count,
       is_earned_member:     is_earned,
+      discount_active:      discount_active,
       message:              message
     }
   end
