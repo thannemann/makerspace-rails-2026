@@ -11,7 +11,6 @@ class SlackCheckoutJob < ApplicationJob
     member_token = parts[0]
     tool_name    = parts[1]
 
-    # Parse member slack ID upfront for error context
     member_slack_id = if slack_mention?(member_token)
       member_token.match(/<@([^|>]+)/i)&.captures&.first
     elsif slack_username?(member_token)
@@ -19,7 +18,6 @@ class SlackCheckoutJob < ApplicationJob
       SlackUser.where(name: /\A#{Regexp.escape(username)}\z/i).first&.slack_id
     end
 
-    # Acquire Redis lock to prevent duplicate concurrent checkouts for same member+tool combo
     lock_key = "checkout_lock/#{member_token.downcase}/#{tool_name.downcase}"
     acquired = Redis.current.set(lock_key, 1, nx: true, ex: 30)
     unless acquired
@@ -28,7 +26,6 @@ class SlackCheckoutJob < ApplicationJob
     end
 
     begin
-      # Verify invoker is authorized — attempt sync_single once if not found
       invoker = find_invoker(invoker_slack_id)
       if invoker.nil?
         synced_member = Service::SlackUserSync.sync_single(invoker_slack_id)
@@ -47,7 +44,6 @@ class SlackCheckoutJob < ApplicationJob
         return
       end
 
-      # Find the shop from the channel
       shop = Shop.find_by(slack_channel: channel_name)
       unless shop
         Honeybadger.notify('Slack checkout failed: shop not found for channel', context: {
@@ -58,11 +54,10 @@ class SlackCheckoutJob < ApplicationJob
           member_slack_id:  member_slack_id,
           channel_name:     channel_name
         })
-        post_response(response_url, :ephemeral, "No shop is configured for ##{channel_name}. Please use the portal.")
+        post_response(response_url, :ephemeral, "No shop is configured for ##{channel_name}. Please use the portal or run /checkout from a shop channel.")
         return
       end
 
-      # Verify invoker can approve for this shop
       unless can_approve_for_shop?(invoker, shop)
         Honeybadger.notify('Slack checkout failed: invoker not approved for shop', context: {
           reason:           "Invoker does not have checkout approval rights for shop '#{shop.name}' (id: #{shop.id})",
@@ -77,7 +72,6 @@ class SlackCheckoutJob < ApplicationJob
         return
       end
 
-      # Find the tool
       tool = Tool.where(shop_id: shop.id).find_by(name: /#{Regexp.escape(tool_name)}/i)
       unless tool
         tool_list = Tool.where(shop_id: shop.id).pluck(:name).join(', ')
@@ -95,8 +89,6 @@ class SlackCheckoutJob < ApplicationJob
         return
       end
 
-      # Find the member — Slack mention, username, or email
-      # Attempt sync_single once if not found via Slack mention or username
       member = find_member_from_token(member_token)
       if member.nil? && (slack_mention?(member_token) || slack_username?(member_token))
         synced_slack_id = member_slack_id
@@ -138,13 +130,12 @@ class SlackCheckoutJob < ApplicationJob
         return
       end
 
-      # Check for duplicate active checkout
-      if ToolCheckout.exists?(member_id: member.id, tool_id: tool.id, revoked_at: nil)
+      # Fix #1 — Mongoid 7 exists? requires scoped query, not arguments
+      if ToolCheckout.where(member_id: member.id, tool_id: tool.id, revoked_at: nil).exists?
         post_response(response_url, :ephemeral, "#{member.fullname} is already checked out on #{tool.name}.")
         return
       end
 
-      # Create the checkout
       checkout = ToolCheckout.new(
         member_id:      member.id,
         tool_id:        tool.id,
@@ -184,10 +175,8 @@ class SlackCheckoutJob < ApplicationJob
           tool_name:        tool.name,
           checkout_id:      checkout.id.to_s
         })
-        # Don't block the response — checkout was saved successfully
       end
 
-      # Check prerequisites — warn in channel but don't block
       unmet   = unmet_prerequisites(member, tool)
       warning = unmet.any? ? "\n⚠ Warning: #{member.firstname} has not been checked out on prerequisite(s): #{unmet.map(&:name).join(', ')}" : ''
 

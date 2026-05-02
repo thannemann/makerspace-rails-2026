@@ -1,25 +1,6 @@
-# Service::SlackUserSync
-#
-# Shared service for syncing Slack users to Member records.
-#
-# Two entry points:
-#   Service::SlackUserSync.sync_single(slack_id)
-#     — Fetches one user from the Slack API by slack_id, matches by email
-#       to a Member record, creates or updates the SlackUser record.
-#       Returns the Member if found, nil if no matching member exists.
-#       Called reactively when a Slack command fails with "user not linked".
-#
-#   Service::SlackUserSync.sync_all
-#     — Bulk syncs all non-bot, non-deleted Slack workspace users.
-#       Called by the "Run Now" button in System Settings and the rake task.
-#       Controlled by SystemConfig 'slack_sync_enabled' flag.
-#
 module Service
   module SlackUserSync
 
-    # Sync a single Slack user by slack_id.
-    # Returns the linked Member if found and matched, nil otherwise.
-    # Posts to logs_channel if the user has no matching Member record.
     def self.sync_single(slack_id)
       unless ENV['SLACK_ADMIN_TOKEN'].present?
         ::Service::SlackConnector.send_slack_message(
@@ -51,7 +32,6 @@ module Service
       member = slack_email.present? ? Member.find_by(email: slack_email) : nil
 
       unless member
-        # Notify admins that someone tried a command with no linked account
         ::Service::SlackConnector.send_slack_message(
           "⚠ Slack user *#{real_name.presence || name}* (`#{slack_id}`)" \
           " attempted a command but has no linked Member account." \
@@ -77,9 +57,6 @@ module Service
       member
     end
 
-    # Bulk sync all Slack workspace users.
-    # Respects the slack_sync_enabled SystemConfig flag.
-    # Returns a result hash with counts for logging.
     def self.sync_all
       unless SystemConfig.enabled?(SystemConfig::SLACK_SYNC_ENABLED)
         puts '[Slack Sync] Skipping — slack_sync_enabled is not set to true in SystemConfig'
@@ -87,7 +64,7 @@ module Service
       end
 
       unless ENV['SLACK_ADMIN_TOKEN'].present?
-        msg = '[Slack Sync] ERROR: SLACK_ADMIN_TOKEN is not set — cannot connect to Slack API'
+        msg = '[Slack Sync] ERROR: SLACK_ADMIN_TOKEN is not set'
         puts msg
         Honeybadger.notify('Slack user sync failed', context: { reason: 'SLACK_ADMIN_TOKEN not set' }) if defined?(Honeybadger)
         raise msg
@@ -108,11 +85,7 @@ module Service
 
         loop do
           response = client.users_list(limit: 200, cursor: cursor)
-
-          unless response['ok']
-            raise 'Slack API returned ok=false'
-          end
-
+          raise 'Slack API returned ok=false' unless response['ok']
           slack_users.concat(response['members'])
           cursor = response.dig('response_metadata', 'next_cursor')
           break if cursor.blank?
@@ -139,7 +112,7 @@ module Service
           member = Member.find_by(email: slack_email)
 
           unless member
-            unmatched << { slack_id: slack_id, name: name, email: slack_email }
+            unmatched << { slack_id: slack_id, name: real_name.presence || name, email: slack_email }
             next
           end
 
@@ -163,28 +136,27 @@ module Service
         end
 
       rescue Slack::Web::Api::Errors::SlackError => e
-        puts "[Slack Sync] ERROR: Slack API error — #{e.message}"
-        Honeybadger.notify('Slack user sync failed', context: { error: e.message, reason: 'Slack API error' }) if defined?(Honeybadger)
+        puts "[Slack Sync] ERROR: #{e.message}"
+        Honeybadger.notify('Slack user sync failed', context: { error: e.message }) if defined?(Honeybadger)
         raise e
       rescue => e
-        puts "[Slack Sync] ERROR: Unexpected error — #{e.message}"
-        Honeybadger.notify('Slack user sync failed', context: { error: e.message, reason: 'Unexpected error' }) if defined?(Honeybadger)
+        puts "[Slack Sync] ERROR: #{e.message}"
+        Honeybadger.notify('Slack user sync failed', context: { error: e.message }) if defined?(Honeybadger)
         raise e
       end
 
-      puts ''
-      puts '[Slack Sync] ✅ Sync complete'
-      puts "[Slack Sync]   Created:               #{created_count}"
-      puts "[Slack Sync]   Updated:               #{updated_count}"
-      puts "[Slack Sync]   Skipped (no email):    #{skipped_count}"
-      puts "[Slack Sync]   Unmatched (no member): #{unmatched.size}"
+      puts "[Slack Sync] ✅ Complete — Created: #{created_count}, Updated: #{updated_count}, Skipped: #{skipped_count}, Unmatched: #{unmatched.size}"
 
+      # Fix #4 — Post unmatched users to logs channel
       if unmatched.any?
-        puts ''
-        puts '[Slack Sync] Unmatched Slack users (no Member record with matching email):'
+        lines = ["⚠ *Slack Sync* — #{unmatched.size} Slack user#{'s' if unmatched.size != 1} have no matching Member account:"]
         unmatched.each do |u|
-          puts "[Slack Sync]   #{u[:name]} (#{u[:slack_id]}) — #{u[:email]}"
+          lines << "• *#{u[:name]}* (`#{u[:slack_id]}`) — #{u[:email]}"
         end
+        ::Service::SlackConnector.send_slack_message(
+          lines.join("\n"),
+          ::Service::SlackConnector.logs_channel
+        )
       end
 
       { created: created_count, updated: updated_count, skipped: skipped_count, unmatched: unmatched.size }

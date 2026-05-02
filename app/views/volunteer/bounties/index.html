@@ -25,8 +25,15 @@
     }
 
     header h1 { font-size: 2rem; font-weight: 700; color: #e85d04; letter-spacing: 0.04em; }
-    header .subtitle { font-size: 1rem; color: #aaa; }
-    #last-updated { font-size: 0.8rem; color: #666; text-align: right; }
+    header .subtitle { font-size: 1rem; color: #aaa; margin-top: 0.35rem; }
+    header .subtitle code {
+      background: #2a2a2a;
+      color: #e85d04;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    #last-updated { font-size: 0.8rem; color: #666; text-align: right; flex-shrink: 0; }
 
     #task-grid {
       display: grid;
@@ -45,7 +52,24 @@
       gap: 0.5rem;
     }
 
-    .task-title { font-size: 1.15rem; font-weight: 600; color: #ffffff; }
+    .task-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+    }
+
+    .task-number {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #e85d04;
+      background: rgba(232, 93, 4, 0.15);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .task-title { font-size: 1.1rem; font-weight: 600; color: #ffffff; }
     .task-description { font-size: 0.9rem; color: #ccc; line-height: 1.5; flex-grow: 1; }
 
     .task-footer {
@@ -87,7 +111,9 @@
   <header>
     <div>
       <h1>Volunteer Bounties</h1>
-      <div class="subtitle">Claim a task, earn credits toward your next discount.</div>
+      <div class="subtitle">
+        Claim a task and help out around the space! Use <code>/volunteer claim &lt;task#&gt;</code> in Slack.
+      </div>
     </div>
     <div id="last-updated">Loading<span class="spinner"></span></div>
   </header>
@@ -121,8 +147,12 @@
       available.forEach(task => {
         const card = document.createElement('div');
         card.className = 'task-card';
+        const taskNum = task.task_number ? '#' + task.task_number : '';
         card.innerHTML = `
-          <div class="task-title">${escapeHtml(task.title)}</div>
+          <div class="task-header">
+            ${taskNum ? '<span class="task-number">' + escapeHtml(taskNum) + '</span>' : ''}
+            <div class="task-title">${escapeHtml(task.title)}</div>
+          </div>
           <div class="task-description">${escapeHtml(task.description)}</div>
           <div class="task-footer">
             <span class="task-credit">${creditLabel(task.credit_value)}</span>

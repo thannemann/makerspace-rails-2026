@@ -9,7 +9,7 @@ class Volunteer::BountiesController < ApplicationController
     if request.format.json?
       render plain: active_tasks_json.to_json, content_type: 'application/json' and return
     end
-    @tasks = VolunteerTask.available.order_by(created_at: :desc)
+    @tasks = VolunteerTask.available.order_by(task_number: :asc)
     render 'volunteer/bounties/index', layout: false
   end
 
@@ -32,9 +32,10 @@ class Volunteer::BountiesController < ApplicationController
   end
 
   def active_tasks_json
-    VolunteerTask.active.order_by(created_at: :desc).map do |t|
+    VolunteerTask.active.order_by(task_number: :asc).map do |t|
       {
         id:           t.id.to_s,
+        task_number:  t.task_number,
         title:        t.title,
         description:  t.description,
         credit_value: t.credit_value,
