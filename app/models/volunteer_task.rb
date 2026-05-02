@@ -6,6 +6,7 @@ class VolunteerTask
   store_in collection: 'volunteer_tasks'
 
   # Task details
+  field :task_number,  type: Integer               # auto-assigned sequential ID
   field :title,        type: String
   field :description,  type: String
   field :credit_value, type: Float, default: 1.0
@@ -39,8 +40,11 @@ class VolunteerTask
   # invalidated if the admin changes the setting later.
   validate :credit_value_within_max, on: :create
 
+  before_create :assign_task_number
+
   index({ status: 1 })
   index({ claimed_by_id: 1 })
+  index({ task_number: 1 }, { unique: true })
 
   # ── Scopes ────────────────────────────────────────────────────────────────
 
@@ -54,7 +58,16 @@ class VolunteerTask
       ENV.fetch('VOLUNTEER_TASK_MAX_CREDIT', 2.0)).to_f
   end
 
+  # Find a task by its sequential task number
+  def self.find_by_number(number)
+    find_by(task_number: number.to_i)
+  end
+
   # ── Instance Methods ──────────────────────────────────────────────────────
+
+  def display_number
+    "##{task_number}"
+  end
 
   def shop
     Shop.find(shop_id) if shop_id
@@ -92,7 +105,6 @@ class VolunteerTask
 
     update!(status: 'completed', verified_by_id: verifier.id)
 
-    # Issue the credit automatically on task completion
     credit = VolunteerCredit.create!(
       member_id:    claimed_by_id,
       issued_by_id: verifier.id,
@@ -101,14 +113,11 @@ class VolunteerTask
       credit_value: credit_value,
       status:       'approved'
     )
-    # Trigger member DM and discount check
     credit.send(:notify_member_credit_awarded)
     credit.send(:check_discount_threshold!)
   end
 
   # Release a claimed task back to available.
-  # Used when a member claimed a task but never completed it.
-  # Admin/RM only — cannot release own claimed task.
   def release!(admin, reason)
     raise Error::Forbidden.new unless status == 'claimed'
     raise Error::Forbidden.new if admin.id == claimed_by_id
@@ -125,9 +134,7 @@ class VolunteerTask
     notify_member_task_released(former_claimant_id, reason)
   end
 
-  # Reject a pending task — member marked done but admin/RM did not verify.
-  # Returns task to available for reclaiming.
-  # Admin/RM only — cannot reject own pending task.
+  # Reject a pending task.
   def reject_pending!(admin, reason)
     raise Error::Forbidden.new unless status == 'pending'
     raise Error::Forbidden.new if admin.id == claimed_by_id
@@ -151,6 +158,16 @@ class VolunteerTask
 
   private
 
+  # Auto-assign the next sequential task number on create.
+  # Uses SystemConfig as an atomic-enough counter for low-volume use.
+  def assign_task_number
+    counter_key = 'volunteer_task_counter'
+    current     = SystemConfig.get(counter_key).to_i
+    next_number = current + 1
+    SystemConfig.set(counter_key, next_number.to_s)
+    self.task_number = next_number
+  end
+
   def credit_value_within_max
     max = VolunteerTask.max_credit_value
     if credit_value && credit_value > max
@@ -158,13 +175,12 @@ class VolunteerTask
     end
   end
 
-  # DM the member whose claim was released
   def notify_member_task_released(member_id, reason)
     slack_user = SlackUser.find_by(member_id: member_id)
     return unless slack_user
 
     enque_message(
-      "ℹ️ Your claim on *#{title}* has been released by an admin. " \
+      "ℹ️ Your claim on *#{title}* (#{display_number}) has been released by an admin. " \
       "Reason: #{reason}. The task is now available for others to claim.",
       slack_user.slack_id
     )
@@ -172,13 +188,12 @@ class VolunteerTask
     Honeybadger.notify(e) if defined?(Honeybadger)
   end
 
-  # DM the member whose pending task was rejected
   def notify_member_task_rejected(member_id, reason)
     slack_user = SlackUser.find_by(member_id: member_id)
     return unless slack_user
 
     enque_message(
-      "ℹ️ Your completion of *#{title}* was not verified. " \
+      "ℹ️ Your completion of *#{title}* (#{display_number}) was not verified. " \
       "Reason: #{reason}. The task is now available for reclaiming.",
       slack_user.slack_id
     )

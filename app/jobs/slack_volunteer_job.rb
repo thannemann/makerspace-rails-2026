@@ -3,19 +3,17 @@
 # Handles inbound /volunteer Slack slash commands asynchronously.
 # All processing is deferred here to satisfy Slack's 3-second response window.
 #
-# If the invoker's Slack account is not linked to a Member record,
-# Service::SlackUserSync.sync_single is called once to attempt a live sync
-# before giving up.
+# Tasks are referenced by sequential task number (#N) not MongoDB IDs.
 #
 # Supported commands:
 #   /volunteer status [@member]              — check credit count
 #   /volunteer tasks                         — list available bounty tasks
-#   /volunteer claim <task-id>               — claim an available bounty task
-#   /volunteer done <task-id>                — mark claimed task as pending verification
+#   /volunteer claim <task#>                 — claim an available bounty task
+#   /volunteer done <task#>                  — mark claimed task as pending verification
 #   /volunteer award @member <reason>        — admin/RM: award a one-off credit (always 1 credit)
-#   /volunteer verify <task-id>              — admin/RM: verify a completed task
-#   /volunteer release <task-id> <reason>    — admin/RM: release a stale claimed task
-#   /volunteer reject <task-id> <reason>     — admin/RM: reject a pending task
+#   /volunteer verify <task#>                — admin/RM: verify a completed task
+#   /volunteer release <task#> <reason>      — admin/RM: release a stale claimed task
+#   /volunteer reject <task#> <reason>       — admin/RM: reject a pending task
 #
 class SlackVolunteerJob < ApplicationJob
   queue_as :default
@@ -109,7 +107,7 @@ class SlackVolunteerJob < ApplicationJob
   end
 
   def handle_tasks(response_url)
-    tasks = VolunteerTask.available.order_by(created_at: :desc).limit(10)
+    tasks = VolunteerTask.available.order_by(task_number: :asc).limit(10)
 
     if tasks.empty?
       post_response(response_url, :ephemeral, '📋 No bounty tasks are currently available.')
@@ -119,22 +117,22 @@ class SlackVolunteerJob < ApplicationJob
     lines = ['📋 *Available Bounty Tasks*']
     tasks.each do |t|
       credit_label = t.credit_value == 1.0 ? '1 credit' : "#{t.credit_value} credits"
-      lines << "• *#{t.title}* (#{credit_label}) — ID: `#{t.id}`\n  #{t.description}"
+      lines << "• *#{t.title}* (#{credit_label}) — `#{t.display_number}`\n  #{t.description}"
     end
-    lines << "\nUse `/volunteer claim <task-id>` to claim one."
+    lines << "\nUse `/volunteer claim <task#>` to claim one. e.g. `/volunteer claim 3`"
 
     post_response(response_url, :ephemeral, lines.join("\n"))
   end
 
-  def handle_claim(response_url, invoker, task_id_str)
-    unless task_id_str.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer claim <task-id>`')
+  def handle_claim(response_url, invoker, task_ref)
+    unless task_ref.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer claim <task#>` e.g. `/volunteer claim 3`')
       return
     end
 
-    task = VolunteerTask.find(task_id_str) rescue nil
+    task = find_task_by_ref(task_ref)
     unless task
-      post_response(response_url, :ephemeral, "❌ Task not found: #{task_id_str}")
+      post_response(response_url, :ephemeral, "❌ Task not found: #{task_ref}. Use `/volunteer tasks` to see available tasks.")
       return
     end
 
@@ -145,18 +143,18 @@ class SlackVolunteerJob < ApplicationJob
 
     task.claim!(invoker)
     post_response(response_url, :ephemeral,
-      "🙌 You've claimed *#{task.title}*. When you're done, use `/volunteer done #{task.id}`")
+      "🙌 You've claimed *#{task.title}* (#{task.display_number}). When you're done, use `/volunteer done #{task.task_number}`")
   end
 
-  def handle_done(response_url, invoker, task_id_str)
-    unless task_id_str.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer done <task-id>`')
+  def handle_done(response_url, invoker, task_ref)
+    unless task_ref.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer done <task#>` e.g. `/volunteer done 3`')
       return
     end
 
-    task = VolunteerTask.find(task_id_str) rescue nil
+    task = find_task_by_ref(task_ref)
     unless task
-      post_response(response_url, :ephemeral, "❌ Task not found: #{task_id_str}")
+      post_response(response_url, :ephemeral, "❌ Task not found: #{task_ref}.")
       return
     end
 
@@ -168,7 +166,7 @@ class SlackVolunteerJob < ApplicationJob
     task.mark_pending!(invoker)
 
     ::Service::SlackConnector.send_slack_message(
-      "✅ *#{invoker.fullname}* completed task *#{task.title}* and is awaiting verification.\nTask ID: `#{task.id}`",
+      "✅ *#{invoker.fullname}* completed task *#{task.title}* (#{task.display_number}) and is awaiting verification.",
       VolunteerCredit.pending_slack_channel
     )
 
@@ -214,20 +212,20 @@ class SlackVolunteerJob < ApplicationJob
       "🌟 *#{invoker.fullname}* awarded a volunteer credit to *#{member.fullname}*: _#{description}_")
   end
 
-  def handle_verify(response_url, invoker, task_id_str)
+  def handle_verify(response_url, invoker, task_ref)
     unless privileged?(invoker)
       post_response(response_url, :ephemeral, '❌ Only admins and resource managers can verify tasks.')
       return
     end
 
-    unless task_id_str.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer verify <task-id>`')
+    unless task_ref.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer verify <task#>` e.g. `/volunteer verify 3`')
       return
     end
 
-    task = VolunteerTask.find(task_id_str) rescue nil
+    task = find_task_by_ref(task_ref)
     unless task
-      post_response(response_url, :ephemeral, "❌ Task not found: #{task_id_str}")
+      post_response(response_url, :ephemeral, "❌ Task not found: #{task_ref}.")
       return
     end
 
@@ -245,23 +243,23 @@ class SlackVolunteerJob < ApplicationJob
     claimant = Member.find(task.claimed_by_id) rescue nil
 
     post_response(response_url, :in_channel,
-      "✅ *#{invoker.fullname}* verified task *#{task.title}* complete for *#{claimant&.fullname || 'member'}*. Credit issued!")
+      "✅ *#{invoker.fullname}* verified task *#{task.title}* (#{task.display_number}) complete for *#{claimant&.fullname || 'member'}*. Credit issued!")
   end
 
-  def handle_release(response_url, invoker, task_id_str, reason)
+  def handle_release(response_url, invoker, task_ref, reason)
     unless privileged?(invoker)
       post_response(response_url, :ephemeral, '❌ Only admins and resource managers can release tasks.')
       return
     end
 
-    unless task_id_str.present? && reason.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer release <task-id> <reason>`')
+    unless task_ref.present? && reason.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer release <task#> <reason>` e.g. `/volunteer release 3 No response from member`')
       return
     end
 
-    task = VolunteerTask.find(task_id_str) rescue nil
+    task = find_task_by_ref(task_ref)
     unless task
-      post_response(response_url, :ephemeral, "❌ Task not found: #{task_id_str}")
+      post_response(response_url, :ephemeral, "❌ Task not found: #{task_ref}.")
       return
     end
 
@@ -272,25 +270,25 @@ class SlackVolunteerJob < ApplicationJob
 
     task.release!(invoker, reason)
     post_response(response_url, :in_channel,
-      "🔓 Task *#{task.title}* has been released back to available. Reason: #{reason}")
+      "🔓 Task *#{task.title}* (#{task.display_number}) has been released back to available. Reason: #{reason}")
   rescue Error::Forbidden
     post_response(response_url, :ephemeral, '❌ You cannot release your own claimed task.')
   end
 
-  def handle_reject(response_url, invoker, task_id_str, reason)
+  def handle_reject(response_url, invoker, task_ref, reason)
     unless privileged?(invoker)
       post_response(response_url, :ephemeral, '❌ Only admins and resource managers can reject tasks.')
       return
     end
 
-    unless task_id_str.present? && reason.present?
-      post_response(response_url, :ephemeral, 'Usage: `/volunteer reject <task-id> <reason>`')
+    unless task_ref.present? && reason.present?
+      post_response(response_url, :ephemeral, 'Usage: `/volunteer reject <task#> <reason>` e.g. `/volunteer reject 3 Work incomplete`')
       return
     end
 
-    task = VolunteerTask.find(task_id_str) rescue nil
+    task = find_task_by_ref(task_ref)
     unless task
-      post_response(response_url, :ephemeral, "❌ Task not found: #{task_id_str}")
+      post_response(response_url, :ephemeral, "❌ Task not found: #{task_ref}.")
       return
     end
 
@@ -301,24 +299,33 @@ class SlackVolunteerJob < ApplicationJob
 
     task.reject_pending!(invoker, reason)
     post_response(response_url, :in_channel,
-      "❌ Task *#{task.title}* completion was rejected. Reason: #{reason}. Task is available for reclaiming.")
+      "❌ Task *#{task.title}* (#{task.display_number}) completion was rejected. Reason: #{reason}. Task is available for reclaiming.")
   rescue Error::Forbidden
     post_response(response_url, :ephemeral, '❌ You cannot reject your own task.')
   end
 
   # ── Helpers ──────────────────────────────────────────────────────────────
 
+  # Accept both "3" and "#3" as task references
+  def find_task_by_ref(ref)
+    number = ref.to_s.sub(/\A#/, '').to_i
+    return nil if number == 0
+    VolunteerTask.find_by_number(number)
+  rescue
+    nil
+  end
+
   def usage_text
     <<~TEXT
       *Volunteer Commands:*
       `/volunteer status [@member]` — Check credit status
       `/volunteer tasks` — List available bounty tasks
-      `/volunteer claim <task-id>` — Claim a bounty task
-      `/volunteer done <task-id>` — Mark your claimed task as complete
-      `/volunteer award @member <reason>` — _(admin/RM)_ Award a one-off credit (1 credit)
-      `/volunteer verify <task-id>` — _(admin/RM)_ Verify a completed task
-      `/volunteer release <task-id> <reason>` — _(admin/RM)_ Release a stale claimed task
-      `/volunteer reject <task-id> <reason>` — _(admin/RM)_ Reject a pending task
+      `/volunteer claim <task#>` — Claim a bounty task e.g. `/volunteer claim 3`
+      `/volunteer done <task#>` — Mark your claimed task as complete
+      `/volunteer award @member <reason>` — _(admin/RM)_ Award a one-off credit
+      `/volunteer verify <task#>` — _(admin/RM)_ Verify a completed task
+      `/volunteer release <task#> <reason>` — _(admin/RM)_ Release a stale claimed task
+      `/volunteer reject <task#> <reason>` — _(admin/RM)_ Reject a pending task
     TEXT
   end
 

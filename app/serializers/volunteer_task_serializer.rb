@@ -1,5 +1,6 @@
 class VolunteerTaskSerializer < ActiveModel::Serializer
   attributes :id,
+             :task_number,
              :title,
              :description,
              :credit_value,
