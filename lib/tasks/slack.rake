@@ -12,7 +12,7 @@ namespace :slack do
     unless ENV['SLACK_ADMIN_TOKEN'].present?
       puts "[Slack Sync] ERROR: SLACK_ADMIN_TOKEN is not set — cannot connect to Slack API"
       Honeybadger.notify("Slack user sync failed", context: { reason: "SLACK_ADMIN_TOKEN not set" })
-      next
+      raise "SLACK_ADMIN_TOKEN is not set"
     end
 
     client = Slack::Web::Client.new(token: ENV['SLACK_ADMIN_TOKEN'])
@@ -34,7 +34,7 @@ namespace :slack do
         unless response["ok"]
           puts "[Slack Sync] ERROR: Slack API returned not-ok response"
           Honeybadger.notify("Slack user sync failed", context: { reason: "Slack API returned ok=false" })
-          next
+          raise "Slack API returned ok=false"
         end
 
         slack_users.concat(response["members"])
@@ -93,11 +93,11 @@ namespace :slack do
     rescue Slack::Web::Api::Errors::SlackError => e
       puts "[Slack Sync] ERROR: Slack API error — #{e.message}"
       Honeybadger.notify("Slack user sync failed", context: { error: e.message, reason: "Slack API error" })
-      next
+      raise e
     rescue => e
       puts "[Slack Sync] ERROR: Unexpected error — #{e.message}"
       Honeybadger.notify("Slack user sync failed", context: { error: e.message, reason: "Unexpected error" })
-      next
+      raise e
     end
 
     puts ""

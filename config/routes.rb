@@ -15,7 +15,13 @@ Rails.application.routes.draw do
 
   # Slack inbound slash commands (outside :api scope — Slack posts form-encoded)
   namespace :slack do
-    post '/commands/checkout', to: 'commands#checkout'
+    post '/commands/checkout',  to: 'commands#checkout'
+    post '/commands/volunteer', to: 'commands#volunteer'
+  end
+
+  # Public volunteer bounty board — unauthenticated, token gated via SystemConfig
+  namespace :volunteer do
+    get '/bounties', to: 'bounties#index'
   end
 
   scope :api, defaults: { format: :json } do
@@ -78,6 +84,13 @@ Rails.application.routes.draw do
         end
       end
 
+      # Volunteer — member self-service
+      get  '/volunteer/credits',            to: 'volunteer#credits'
+      get  '/volunteer/summary',            to: 'volunteer#summary'
+      get  '/volunteer/tasks',              to: 'volunteer#tasks'
+      post '/volunteer/tasks/:id/claim',    to: 'volunteer#claim_task'
+      post '/volunteer/tasks/:id/complete', to: 'volunteer#complete_task'
+
       namespace :admin do
         resources :cards, only: [:new, :create, :index, :update]
         resources :invoices, only: [:index, :create, :update, :destroy]
@@ -138,6 +151,24 @@ Rails.application.routes.draw do
         resources :earned_memberships, only: [:index, :show, :create, :update] do
           scope module: :earned_memberships do
             resources :reports, only: [:index]
+          end
+        end
+
+        # Volunteer credits — admin/RM manage
+        resources :volunteer_credits, only: [:index, :create, :destroy] do
+          member do
+            post :approve
+            post :reject
+          end
+        end
+
+        # Volunteer bounty tasks — admin/RM manage
+        resources :volunteer_tasks, only: [:index, :create, :update, :destroy] do
+          member do
+            post :complete
+            post :cancel
+            post :release
+            post :reject_pending
           end
         end
       end

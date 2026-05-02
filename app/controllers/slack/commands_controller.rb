@@ -1,15 +1,14 @@
-# Handles inbound Slack slash commands for tool checkouts.
+# Handles inbound Slack slash commands.
 #
 # Slack sends a POST to /slack/commands when a slash command is used.
 # The payload includes: command, text, channel_name, user_id, user_name
 #
-# Expected command format:
-#   /checkout @member bandsaw
-#   /checkout member@email.com bandsaw
-#
-# The shop is inferred from the channel_name via Shop.slack_channel field.
 # Response must be returned within 3 seconds (Slack timeout).
-# All processing is deferred to SlackCheckoutJob to avoid the timeout.
+# All processing is deferred to jobs to avoid the timeout.
+#
+# Commands:
+#   /checkout @member tool-name   — tool checkout (SlackCheckoutJob)
+#   /volunteer <subcommand>       — volunteer credits/tasks (SlackVolunteerJob)
 #
 class Slack::CommandsController < ApplicationController
   include Service::SlackConnector
@@ -35,6 +34,15 @@ class Slack::CommandsController < ApplicationController
     render json: {
       response_type: 'ephemeral',
       text: "Processing checkout of *#{tool_name}* for *#{member_token}*..."
+    }
+  end
+
+  def volunteer
+    SlackVolunteerJob.perform_later(params.to_unsafe_h.stringify_keys)
+
+    render json: {
+      response_type: 'ephemeral',
+      text: 'Processing your volunteer command...'
     }
   end
 
