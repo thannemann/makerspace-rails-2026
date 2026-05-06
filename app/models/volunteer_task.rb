@@ -179,7 +179,7 @@ class VolunteerTask
     slack_user = SlackUser.find_by(member_id: member_id)
     return unless slack_user
 
-    enque_message(
+    ::Service::SlackConnector.send_slack_message(
       "ℹ️ Your claim on *#{title}* (#{display_number}) has been released by an admin. " \
       "Reason: #{reason}. The task is now available for others to claim.",
       slack_user.slack_id
@@ -192,7 +192,7 @@ class VolunteerTask
     slack_user = SlackUser.find_by(member_id: member_id)
     return unless slack_user
 
-    enque_message(
+    ::Service::SlackConnector.send_slack_message(
       "ℹ️ Your completion of *#{title}* (#{display_number}) was not verified. " \
       "Reason: #{reason}. The task is now available for reclaiming.",
       slack_user.slack_id

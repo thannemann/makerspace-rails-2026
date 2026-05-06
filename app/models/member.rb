@@ -250,15 +250,15 @@ class Member
   # Emit to Member & Management channels on renewal
   def send_renewal_slack_message(current_user=nil)
     slack_user = SlackUser.find_by(member_id: id)
-    enque_message(get_renewal_slack_message, slack_user.slack_id) unless slack_user.nil?
-    enque_message(get_renewal_slack_message(current_user), ::Service::SlackConnector.members_relations_channel)
+    ::Service::SlackConnector.send_slack_message(get_renewal_slack_message, slack_user.slack_id) unless slack_user.nil?
+    ::Service::SlackConnector.send_slack_message(get_renewal_slack_message(current_user), ::Service::SlackConnector.members_relations_channel)
   end
 
   # Emit to Member & Management channels on renewal reversals
   def send_renewal_reversal_slack_message
     slack_user = SlackUser.find_by(member_id: id)
-    enque_message(get_renewal_reversal_slack_message, slack_user.slack_id) unless slack_user.nil?
-    enque_message(get_renewal_reversal_slack_message, ::Service::SlackConnector.members_relations_channel)
+    ::Service::SlackConnector.send_slack_message(get_renewal_reversal_slack_message, slack_user.slack_id) unless slack_user.nil?
+    ::Service::SlackConnector.send_slack_message(get_renewal_reversal_slack_message, ::Service::SlackConnector.members_relations_channel)
   end
 
   protected

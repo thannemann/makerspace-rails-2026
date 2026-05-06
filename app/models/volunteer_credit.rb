@@ -120,7 +120,7 @@ class VolunteerCredit
     slack_user = SlackUser.find_by(member_id: m.id)
     return unless slack_user
 
-    enque_message(
+    ::Service::SlackConnector.send_slack_message(
       "🌟 You've been awarded a volunteer credit for: #{description}. " \
       "You now have #{year_total} credit#{'s' if year_total != 1.0} this year.",
       slack_user.slack_id
@@ -171,7 +171,7 @@ class VolunteerCredit
     # DM the member
     slack_user = SlackUser.find_by(member_id: m.id)
     if slack_user
-      enque_message(
+      ::Service::SlackConnector.send_slack_message(
         "🎉 You've reached #{threshold} credits and earned a discount on your next billing cycle!",
         slack_user.slack_id
       )
@@ -179,7 +179,7 @@ class VolunteerCredit
 
     # Notify treasurer channel
     amount_str = discount_amount > 0 ? "$#{format('%.2f', discount_amount)} off" : 'a discount'
-    enque_message(
+    ::Service::SlackConnector.send_slack_message(
       "💰 Volunteer discount applied for *#{m.fullname}* — #{amount_str} their next billing cycle.",
       ::Service::SlackConnector.treasurer_channel
     )

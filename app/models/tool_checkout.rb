@@ -28,7 +28,7 @@ class ToolCheckout
     tool_name = self.tool.name
     approver_name = self.approved_by.try(:fullname) || "an admin"
     message = "You have been checked out on *#{tool_name}* in *#{shop_name}* by #{approver_name}. You are now approved to use this tool."
-    enque_message(message, slack_user.slack_id)
+    ::Service::SlackConnector.send_slack_message(message, slack_user.slack_id)
   end
 
   # Notify member via Slack DM when revoked
@@ -39,6 +39,6 @@ class ToolCheckout
     shop_name = self.tool.shop.try(:name) || "the shop"
     tool_name = self.tool.name
     message = "Your checkout for *#{tool_name}* in *#{shop_name}* has been revoked. Please contact an admin if you have questions."
-    enque_message(message, slack_user.slack_id)
+    ::Service::SlackConnector.send_slack_message(message, slack_user.slack_id)
   end
 end

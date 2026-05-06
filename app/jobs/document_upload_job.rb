@@ -24,7 +24,7 @@ class DocumentUploadJob < ApplicationJob
       MemberMailer.send_document(document_type, member.id.as_json, document).deliver_later
     rescue Error::Google::Upload => err
       member_name = member&.fullname || "Unknown member (#{resource_id})"
-      enque_message("Error uploading #{member_name}'s #{document_type} signature. Error: #{err}")
+      ::Service::SlackConnector.send_slack_message("Error uploading #{member_name}'s #{document_type} signature. Error: #{err}")
       on_fail&.call
     end
   end
