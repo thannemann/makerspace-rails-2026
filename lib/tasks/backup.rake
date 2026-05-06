@@ -3,9 +3,9 @@ task :backup => :environment do
   dump_dir = "dump"
   backup_error = nil
   begin
-    Dir.mkdir(dump_dir) unless File.exist?(dump_dir)
+    Dir.mkdir(dump_dir) unless File.exists?(dump_dir)
     file_name = "makerauthBackup_#{Time.now.strftime('%m-%d-%Y')}.archive"
-    sh("/usr/bin/mongodump --uri #{ENV['MLAB_URI']} --archive=#{dump_dir}/#{file_name}")
+    sh("/usr/bin/mongodump --uri '#{ENV['MLAB_URI']}' --archive=#{dump_dir}/#{file_name}")
     Service::GoogleDrive.upload_backup(file_name)
     slack_message = "Daily backup complete."
   rescue => e
