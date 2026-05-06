@@ -63,7 +63,7 @@ class VolunteerController < AuthenticationController
 
   # GET /api/volunteer/events
   def events
-    events = VolunteerEvent.open.order_by(created_at: :desc)
+    events = VolunteerEvent.active_events.order_by(created_at: :desc)
     render json: events, each_serializer: VolunteerEventSerializer, adapter: :attributes
   end
 

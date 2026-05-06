@@ -29,8 +29,8 @@ class VolunteerEvent
 
   # ── Scopes ────────────────────────────────────────────────────────────────
 
-  scope :open,   -> { where(status: 'open') }
-  scope :closed, -> { where(status: 'closed') }
+  scope :active_events,   -> { where(status: 'open') }
+  scope :closed_events, -> { where(status: 'closed') }
 
   # ── Class Methods ─────────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ class VolunteerEvent
     slack_user = SlackUser.find_by(member_id: member.id)
     return unless slack_user
 
-    ::Service::SlackConnector.send_slack_message(
+    enque_message(
       "✅ You're checked in to *#{title}* (#{display_number}). Credits will be issued when the event closes.",
       slack_user.slack_id
     )

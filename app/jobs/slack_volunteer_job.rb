@@ -168,7 +168,7 @@ class SlackVolunteerJob < ApplicationJob
   end
 
   def handle_events(response_url)
-    events = VolunteerEvent.open.order_by(event_number: :asc).limit(10)
+    events = VolunteerEvent.active_events.order_by(event_number: :asc).limit(10)
 
     if events.empty?
       post_response(response_url, :ephemeral, '📅 No volunteer events are currently open.')
