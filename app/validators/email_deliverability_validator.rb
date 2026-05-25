@@ -4,8 +4,13 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
   UNDELIVERABLE_MESSAGE = 'Email address is undeliverable'.freeze
 
   def validate_each(record, attribute, value)
+    Rails.logger.debug("[EmailDeliverabilityValidator] valid_email2 will validate #{value}.")
     return if value.blank?
-    return if ENV['SKIP_EMAILVALIDATION'].present?
+    if ENV['SKIP_EMAILVALIDATION'].present?
+          Rails.logger.debug("[EmailDeliverabilityValidator] valid_email2 skipped #{value} due to SKIP_EMAILVALIDATION")
+          return
+    end
+
 
     valid = begin
       ValidEmail2::Address.new(value.to_s).valid?
@@ -13,7 +18,10 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
       Rails.logger.error("[EmailDeliverabilityValidator] valid_email2 error for #{value}: #{e.class} #{e.message}")
       true
     end
-    return if valid
+    if valid
+      Rails.logger.debug("[EmailDeliverabilityValidator] valid_email2 approved email #{value} ")
+      return
+    end
 
     domain = value.to_s.split('@').last.to_s
     if domain.blank?
@@ -30,6 +38,7 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
     rescue Resolv::ResolvError => e
       Rails.logger.warn("[EmailDeliverabilityValidator] resolver error for #{value}: #{e.class} #{e.message}; retrying with fallback nameservers")
       begin
+        Rails.logger.info("[EmailDeliverabilityValidator] valid_email2 timed out on #{value}, falling back to quad 8")
         resolve_domain!(domain, nameservers: ['8.8.8.8', '1.1.1.1'], timeout: 2)
         return
       rescue Resolv::DNS::TimeoutError => timeout_error
