@@ -19,12 +19,13 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
       true
     end
     if valid
-      Rails.logger.debug("[EmailDeliverabilityValidator] valid_email2 approved email #{value} ")
+      Rails.logger.warn("[EmailDeliverabilityValidator] valid_email2 approved email #{value} ")
       return
     end
 
     domain = value.to_s.split('@').last.to_s
     if domain.blank?
+      Rails.logger.warn("[EmailDeliverabilityValidator] valid_email2 rejected blank email")
       record.errors.add(attribute, UNDELIVERABLE_MESSAGE)
       return
     end
@@ -53,7 +54,7 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
       Rails.logger.error("[EmailDeliverabilityValidator] unexpected resolver error for #{value}: #{e.class} #{e.message}")
       return
     end
-
+    Rails.logger.warn("[EmailDeliverabilityValidator] valid_email2 rejected email #{value} ")
     record.errors.add(attribute, UNDELIVERABLE_MESSAGE)
   end
 
