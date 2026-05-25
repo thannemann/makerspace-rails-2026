@@ -13,7 +13,7 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
 
 
     valid = begin
-      ValidEmail2::Address.new(value.to_s).valid?
+      ValidEmail2::Address.new(value.to_s).valid_strict_mx?
     rescue StandardError => e
       Rails.logger.error("[EmailDeliverabilityValidator] valid_email2 error for #{value}: #{e.class} #{e.message}")
       true
@@ -25,7 +25,7 @@ class EmailDeliverabilityValidator < ActiveModel::EachValidator
 
     domain = value.to_s.split('@').last.to_s
     if domain.blank?
-      Rails.logger.warn("[EmailDeliverabilityValidator] valid_email2 rejected blank email")
+      Rails.logger.warn("[EmailDeliverabilityValidator] rejected blank email")
       record.errors.add(attribute, UNDELIVERABLE_MESSAGE)
       return
     end
